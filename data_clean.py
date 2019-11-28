@@ -51,3 +51,15 @@ print('_'*40)
 print(train_df[["Age", "Survived"]].groupby(['Age'], as_index=False).mean().sort_values(by='Survived', ascending=False).to_string())
 
 print()
+
+
+print('=== Drop useless cols [PassengerId, Ticket, Cabin] ===')
+print("Before droping") 
+print("    train_df.shape: ", train_df.shape)
+print("    test_df.shape: ", test_df.shape)
+train_df = train_df.drop(['PassengerId', 'Ticket', 'Cabin'], axis=1)
+test_df = test_df.drop(['PassengerId', 'Ticket', 'Cabin'], axis=1)
+combine = [train_df, test_df]
+print("After droping") 
+print("    train_df.shape: ", train_df.shape)
+print("    test_df.shape: ", test_df.shape)
