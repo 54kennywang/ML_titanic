@@ -2,9 +2,14 @@ import pandas as pd
 import numpy as np
 import random as rnd
 
+# set dataFrame display properties
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
+
 train_df = pd.read_csv('./input/train.csv')
 test_df = pd.read_csv('./input/test.csv')
-combine = [train_df, test_df]
+combine = [train_df, test_df] # reference copy
 
 print('=== Col names ===')
 print(train_df.columns.values)
@@ -12,11 +17,11 @@ print()
 
 # preview the data
 print('=== First 5 rows ===')
-print(train_df.head().to_string())
+print(train_df.head())
 print()
 
 print('=== Last 5 rows ===')
-print(train_df.tail().to_string())
+print(train_df.tail())
 print()
 # train_df.info()
 # print('_'*40)
@@ -24,11 +29,19 @@ print()
 
 # stats about the data
 print('=== Null percentage ===')
+print('*** train_df ***')
 print(train_df.isna().sum() / train_df.shape[0])
+print()
+print('*** test_df ***')
+print(test_df.isna().sum() / test_df.shape[0])
 print()
 
 print('=== Col stats ===')
-print(train_df.describe().to_string())
+print('*** train_df ***')
+print(train_df.describe())
+print()
+print('*** test_df ***')
+print(test_df.describe())
 print()
 
 print(train_df.describe(include=['O']))
@@ -48,7 +61,7 @@ print(train_df[["Embarked", "Survived"]].groupby(['Embarked'], as_index=False).m
 print('_'*40)
 # print(train_df[["Fare", "Survived"]].groupby(['Fare'], as_index=False).mean().sort_values(by='Survived', ascending=False))
 print('_'*40)
-# print(train_df[["Age", "Survived"]].groupby(['Age'], as_index=False).mean().sort_values(by='Survived', ascending=False).to_string())
+# print(train_df[["Age", "Survived"]].groupby(['Age'], as_index=False).mean().sort_values(by='Survived', ascending=False))
 
 print()
 
@@ -73,10 +86,10 @@ for dataset in combine:
     dataset['Title'] = dataset.Name.str.extract(' ([A-Za-z]+)\.', expand=False) # use regex to generate Title
 
 print('=== combine[0]: train_df ===')
-print(combine[0].head().to_string())
+print(combine[0].head())
 print()
 print('=== combine[1]: test_df ===')
-print(combine[1].head().to_string())
+print(combine[1].head())
 print()
 
 # cross info
@@ -101,7 +114,7 @@ train_df = train_df.drop(['Name'], axis=1)
 test_df = test_df.drop(['Name'], axis=1)
 combine = [train_df, test_df]
 
-print(train_df.head().to_string())
+print(train_df.head())
 print()
 
 print('=== convert Sex to ordinal ===')
@@ -117,7 +130,7 @@ embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
 for dataset in combine:
     for key, val in embarked_mapping.items():
         dataset['Embarked'] = dataset['Embarked'].map(embarked_mapping).astype(int)
-print(train_df.head().to_string())
+print(train_df.head())
 '''
 
 print('=== Fill in missing age ===')
@@ -145,13 +158,13 @@ for dataset in combine:
             dataset.loc[(dataset.Age.isnull()) & (dataset.Sex == i) & (dataset.Pclass == j + 1), 'Age'] = guess_ages[i, j]
 
     dataset['Age'] = dataset['Age'].astype(int)
-print(train_df.tail().to_string)
+print(train_df.tail())
 
 print('=== Group age into bins ===')
-# print(train_df.describe().to_string()) shows 0.0 <= Age <= 80.0
+# print(train_df.describe()) shows 0.0 <= Age <= 80.0
 # Use cut when you need to segment and sort data values into bins, here to put age into 5 bins
 train_df['AgeBand'] = pd.cut(train_df['Age'], 5)
-print(train_df.head().to_string)
+print(train_df.head())
 print(train_df[['AgeBand', 'Survived']].groupby(['AgeBand'], as_index=False).mean().sort_values(by='AgeBand', ascending=True))
 
 print('=== convert age to ordinal value based on age bins ===')
@@ -161,13 +174,47 @@ for dataset in combine:
     dataset.loc[(dataset['Age'] > 32) & (dataset['Age'] <= 48), 'Age'] = 2
     dataset.loc[(dataset['Age'] > 48) & (dataset['Age'] <= 64), 'Age'] = 3
     dataset.loc[ dataset['Age'] > 64, 'Age'] = 4
-print(train_df.head().to_string)
+print(train_df.head())
+train_df = train_df.drop(['AgeBand'], axis=1)
+combine = [train_df, test_df]
+
+print('=== Null percentage (pay attention on Age) ===')
+print('*** train_df ***')
+print(train_df.isna().sum() / train_df.shape[0])
+print()
+print('*** test_df ***')
+print(test_df.isna().sum() / test_df.shape[0])
+print()
 
 
+print('=== Fill in missing fare in test ===')
+test_df['Fare'].fillna(test_df['Fare'].dropna().median(), inplace=True)
+print('*** train_df ***')
+print(train_df.isna().sum() / train_df.shape[0])
+print()
+print('*** test_df ***')
+print(test_df.isna().sum() / test_df.shape[0]) # same as print(combine[1].isna().sum() / combine[1].shape[0])
+print()
+print()
 
+print('=== Group fare into bins ===')
+# print(train_df.describe()) shows 0.0 <= Age <= 512.329200
+# Use cut when you need to segment and sort data values into bins, here to put fare into 4 bins
+train_df['FareBand'] = pd.cut(train_df['Fare'], 4)
+print(train_df.tail())
+print(train_df[['FareBand', 'Survived']].groupby(['FareBand'], as_index=False).mean().sort_values(by='FareBand', ascending=True))
 
-
-
+print('=== convert fare to ordinal value based on fare bins ===')
+for dataset in combine:
+    dataset.loc[ dataset['Fare'] <= 7.91, 'Fare'] = 0
+    dataset.loc[(dataset['Fare'] > 7.91) & (dataset['Fare'] <= 14.454), 'Fare'] = 1
+    dataset.loc[(dataset['Fare'] > 14.454) & (dataset['Fare'] <= 31), 'Fare'] = 2
+    dataset.loc[ dataset['Fare'] > 31, 'Fare'] = 3
+    dataset['Fare'] = dataset['Fare'].astype(int)
+train_df = train_df.drop(['FareBand'], axis=1)
+combine = [train_df, test_df]
+print(combine[0].head())
+print(combine[1].head())
 
 
 
