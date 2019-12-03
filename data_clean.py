@@ -73,14 +73,14 @@ print('_'*40)
 
 print()
 
-print('=== Drop useless cols [PassengerId, Ticket, Cabin] ===')
-print("Before droping") 
+print('=== Drop useless cols [Ticket, Cabin] ===')
+print("Before droping")
 print("    train_df.shape: ", train_df.shape)
 print("    test_df.shape: ", test_df.shape)
 train_df = train_df.drop(['Ticket', 'Cabin'], axis=1)
 test_df = test_df.drop(['Ticket', 'Cabin'], axis=1)
 combine = [train_df, test_df]
-print("After droping") 
+print("After droping")
 print("    train_df.shape: ", train_df.shape)
 print("    test_df.shape: ", test_df.shape)
 
@@ -288,5 +288,4 @@ print("RandomForest", acc_random_forest)
 submission = pd.DataFrame({"PassengerId": test_df["PassengerId"], "Survived": Y_pred})
 # submission.to_csv('../output/submission.csv', index=False)
 # print(submission)
-
 
