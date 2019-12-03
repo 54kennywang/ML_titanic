@@ -1,6 +1,14 @@
 import pandas as pd
 import numpy as np
 import random as rnd
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC, LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -69,8 +77,8 @@ print('=== Drop useless cols [PassengerId, Ticket, Cabin] ===')
 print("Before droping") 
 print("    train_df.shape: ", train_df.shape)
 print("    test_df.shape: ", test_df.shape)
-train_df = train_df.drop(['PassengerId', 'Ticket', 'Cabin'], axis=1)
-test_df = test_df.drop(['PassengerId', 'Ticket', 'Cabin'], axis=1)
+train_df = train_df.drop(['Ticket', 'Cabin'], axis=1)
+test_df = test_df.drop(['Ticket', 'Cabin'], axis=1)
 combine = [train_df, test_df]
 print("After droping") 
 print("    train_df.shape: ", train_df.shape)
@@ -97,7 +105,7 @@ print()
 
 # categorize title to Miss/Mrs/Rare/Master/Mr
 for dataset in combine:
-    dataset['Title'] = dataset['Title'].replace(['Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona'], 'Rare')
+    dataset['Title'] = dataset['Title'].replace(['Col', 'Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona', 'Don'], 'Rare')
     dataset['Title'] = dataset['Title'].replace('Mlle', 'Miss')
     dataset['Title'] = dataset['Title'].replace('Ms', 'Miss')
     dataset['Title'] = dataset['Title'].replace('Mme', 'Mrs')
@@ -123,15 +131,6 @@ for dataset in combine:
     for key, val in sex_mapping.items():
         dataset['Sex'] = dataset['Sex'].replace(key, int(val))
 
-
-''' missing data in Embarked
-print('=== convert Embarked to ordinal ===')
-embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
-for dataset in combine:
-    for key, val in embarked_mapping.items():
-        dataset['Embarked'] = dataset['Embarked'].map(embarked_mapping).astype(int)
-print(train_df.head())
-'''
 
 print('=== Fill in missing age ===')
 '''
@@ -215,14 +214,79 @@ train_df = train_df.drop(['FareBand'], axis=1)
 combine = [train_df, test_df]
 print(combine[0].head())
 print(combine[1].head())
+print()
+
+print('=== Fill in missing embarked in train ===')
+# only 2 missing Embarked in train_df, simply replace them with the most frequent one
+freq_port = train_df.Embarked.dropna().mode()[0]
+for dataset in combine:
+    dataset['Embarked'] = dataset['Embarked'].fillna(freq_port)
+print('*** train_df ***')
+print(train_df.isna().sum() / train_df.shape[0])
+print()
+print('*** test_df ***')
+print(test_df.isna().sum() / test_df.shape[0]) # same as print(combine[1].isna().sum() / combine[1].shape[0])
+print()
+print()
+
+print('=== convert Embarked to ordinal after filling in null Embarked ===')
+embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
+for dataset in combine:
+    for key, val in embarked_mapping.items():
+        dataset['Embarked'] = dataset['Embarked'].replace(key, int(val))
+print(train_df.head())
 
 
+print('=== Create family size ===')
+for dataset in combine:
+    dataset['FamilySize'] = dataset['SibSp'] + dataset['Parch'] + 1
+print()
+print()
 
 
+print('=== Create IsAlone ===')
+for dataset in combine:
+    dataset['IsAlone'] = 0
+    dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
+print(combine[0].head())
+print(combine[1].head())
+print()
+
+# Model
+print('=== Model ===')
+X_train = train_df.drop(["PassengerId", "Survived"], axis=1) # (891, 10)
+Y_train = train_df["Survived"] # (891,)
+X_test  = test_df.drop("PassengerId", axis=1).copy() # (418, 10)
+
+# i, c = np.where(X_train == 'Col')
+# print ((X_train.index[i][0], X_train.columns[c][0]))
+X_train = X_train.astype(int)
+Y_train = Y_train.astype(int)
+X_test = X_test.astype(int)
 
 
+logreg = LogisticRegression()
+logreg.fit(X_train, Y_train)
+Y_pred = logreg.predict(X_test)
+acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
+print("LogisticRegression:", acc_log)
 
+decision_tree = DecisionTreeClassifier()
+decision_tree.fit(X_train, Y_train)
+Y_pred = decision_tree.predict(X_test)
+acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
+print("DecisionTree", acc_decision_tree)
 
+random_forest = RandomForestClassifier(n_estimators=100)
+random_forest.fit(X_train, Y_train)
+Y_pred = random_forest.predict(X_test)
+random_forest.score(X_train, Y_train)
+acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
+print("RandomForest", acc_random_forest)
 
+# submission
+submission = pd.DataFrame({"PassengerId": test_df["PassengerId"], "Survived": Y_pred})
+# submission.to_csv('../output/submission.csv', index=False)
+# print(submission)
 
 
