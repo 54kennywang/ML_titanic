@@ -144,6 +144,19 @@ def fill_missing_age(combine):
         dataset['Age'] = dataset['Age'].astype(int)
     return combine
 
+# a different way to generate missing age
+def fill_missing_age2(combine):
+    for dataset in combine:
+        age_avg = dataset['Age'].mean()
+        age_std = dataset['Age'].std()
+        age_null_count = dataset['Age'].isnull().sum()
+
+        age_null_random_list = np.random.randint(age_avg - age_std, age_avg + age_std, size=age_null_count)
+        dataset['Age'][np.isnan(dataset['Age'])] = age_null_random_list
+        dataset['Age'] = dataset['Age'].astype(int)
+    return combine
+
+
 def group_age_into_bins(df):
     # print(train_df.describe()) shows 0.0 <= Age <= 80.0
     print('=== Group age into bins ===')
@@ -280,7 +293,7 @@ def Model(train_input, test_input):
     train_df, test_df = update_df(combine)
 
     # Fill in missing age
-    combine = fill_missing_age(combine)
+    combine = fill_missing_age2(combine)
     train_df, test_df = update_df(combine)
 
     # Group age into bins
@@ -346,6 +359,13 @@ def Model(train_input, test_input):
     Y_pred = logreg.predict(X_test)
     acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
     print("LogisticRegression:", acc_log)
+
+    decision_tree = DecisionTreeClassifier()
+    decision_tree.fit(X_train, Y_train)
+    Y_pred = decision_tree.predict(X_test)
+    acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
+    print("DecisionTree", acc_decision_tree)
+
 
 if __name__== "__main__":
     Model(train_input, test_input)
