@@ -11,6 +11,9 @@ from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 from sklearn.tree import DecisionTreeClassifier
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -95,6 +98,14 @@ def add_title_col(combine):
     print('=== extract title from name ===')
     for dataset in combine:
         dataset['Title'] = dataset.Name.str.extract(' ([A-Za-z]+)\.', expand=False) # use regex to generate Title
+    return combine
+
+# project-specific
+def add_name_length(combine):
+    # this will loop through all rows in both train and test, it updates train_df, test_df as well
+    print('=== extract title length from name ===')
+    for dataset in combine:
+        dataset['nameLen'] = dataset['Name'].apply(len)
     return combine
 
 # categorize title to Miss/Mrs/Rare/Master/Mr
@@ -222,6 +233,14 @@ def update_df(combine):
     test_df = combine[1]
     return train_df, test_df
 
+def Pearson_Correlation_of_Features(train_df):
+    colormap = plt.cm.RdBu
+    plt.figure(figsize=(14, 12))
+    plt.title('Pearson Correlation of Features', y=1.05, size=15)
+    sns.heatmap(train_df.astype(float).corr(), linewidths=0.1, vmax=1.0,
+                square=True, cmap=colormap, linecolor='white', annot=True)
+    plt.show()
+
 # Model
 """
 print('=== Model ===')
@@ -283,6 +302,11 @@ def Model(train_input, test_input):
     combine = caregorize_title(combine)
     combine = categorical_to_ordinal(combine, title_mapping, 'Title')
     train_df, test_df = update_df(combine)
+
+    # add nameLen col
+    combine = add_name_length(combine)
+    train_df, test_df = update_df(combine)
+
     # remove Name col
     train_df = drop_col(train_df, ['Name'])
     test_df = drop_col(test_df, 'Name')
@@ -344,6 +368,8 @@ def Model(train_input, test_input):
     #
     # get_null_percentage(train_df)
     # get_null_percentage(test_df)
+
+    # Pearson_Correlation_of_Features(train_df)
 
     print('=== Model ===')
     X_train = train_df.drop(["PassengerId", "Survived"], axis=1)  # (891, 10)
