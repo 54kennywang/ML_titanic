@@ -271,8 +271,8 @@ df.to_csv('feature_importance.csv')
 # concatenated and joined both the first-level train and test predictions as x_train and x_test, we can now fit a second-level learning model.
 x_train = np.concatenate(( et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, svc_oof_train), axis=1)
 x_test = np.concatenate(( et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, svc_oof_test), axis=1)
-print(x_train.shape) # (891, 5)
-print(x_test.shape) # (418, 5)
+print(x_train.shape, type(x_train)) # (891, 5)
+print(x_test.shape, type(x_test)) # (418, 5)
 
 gbm = xgb.XGBClassifier(
     #learning_rate = 0.02,
