@@ -242,6 +242,10 @@ def Pearson_Correlation_of_Features(train_df):
     sns.heatmap(train_df.astype(float).corr(), linewidths=0.1, vmax=1.0,
                 square=True, cmap=colormap, linecolor='white', annot=True)
     plt.show()
+def feature_importance(cls, X_train, Y_train):
+    importance = (cls.fit(X_train, Y_train).feature_importances_).tolist()
+    titles = X_train.columns.values.tolist()
+    return titles, importance
 
 # Model
 """
@@ -385,20 +389,78 @@ def Model(train_input, test_input):
     Y_train = Y_train.astype(int)
     X_test = X_test.astype(int)
 
-    """
-    logreg = LogisticRegression()
+    logreg = LogisticRegression() # 80.92
     logreg.fit(X_train, Y_train)
     Y_pred = logreg.predict(X_test)
     acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
     print("LogisticRegression:", acc_log)
-    """
 
     decision_tree = DecisionTreeClassifier()
-    decision_tree.fit(X_train, Y_train)
+    # feature importance
+    titles, importance = feature_importance(decision_tree, X_train, Y_train)
+    print(titles)
+    print(importance)
+
+    decision_tree.fit(X_train, Y_train) # 96.3
     Y_pred = decision_tree.predict(X_test)
     acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
     print("DecisionTree", acc_decision_tree)
     # submission(test_df, Y_pred)
 
+    random_forest = RandomForestClassifier() # 95.4
+    random_forest.fit(X_train, Y_train)
+    Y_pred = random_forest.predict(X_test)
+    acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
+    print("RandomForest", acc_random_forest)
+
+    KNeighbors= KNeighborsClassifier() # 85.86
+    KNeighbors.fit(X_train, Y_train)
+    Y_pred = KNeighbors.predict(X_test)
+    acc_KNeighbors = round(KNeighbors.score(X_train, Y_train) * 100, 2)
+    print("KNeighbors", acc_KNeighbors)
+
+
+    Gaussian = GaussianNB() # 80.25
+    Gaussian.fit(X_train, Y_train)
+    Y_pred = Gaussian.predict(X_test)
+    acc_Gaussian = round(Gaussian.score(X_train, Y_train) * 100, 2)
+    print("Gaussian", acc_Gaussian)
+
+
+    # Percept = Perceptron()
+    # Percept.fit(X_train, Y_train)
+    # Y_pred = Percept.predict(X_test)
+    # acc_rPercept = round(Percept.score(X_train, Y_train) * 100, 2)
+    # print("Percept", Percept)
+
+
+    SGD = SGDClassifier() # 74.19
+    SGD.fit(X_train, Y_train)
+    Y_pred = SGD.predict(X_test)
+    acc_SGD = round(SGD.score(X_train, Y_train) * 100, 2)
+    print("SGD", acc_SGD)
+
+    svc = SVC() # 86.42
+    svc.fit(X_train, Y_train)
+    Y_pred = svc.predict(X_test)
+    acc_svc = round(svc.score(X_train, Y_train) * 100, 2)
+    print("svc", acc_svc)
+
+    linear = LinearSVC() # 79.57
+    linear.fit(X_train, Y_train)
+    Y_pred = linear.predict(X_test)
+    acc_linear = round(linear.score(X_train, Y_train) * 100, 2)
+    print("linear", acc_linear)
+
 if __name__== "__main__":
     Model(train_input, test_input)
+    """
+    LogisticRegression: 80.92
+    DecisionTree 96.3
+    RandomForest 95.4
+    KNeighbors 85.86
+    Gaussian 80.13
+    SGD 67.9
+    svc 86.08
+    linear 72.95
+    """

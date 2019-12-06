@@ -36,8 +36,10 @@ warnings.filterwarnings('ignore')
 # Going to use these 5 base models for the stacking
 from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier,
                               GradientBoostingClassifier, ExtraTreesClassifier)
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
+from sklearn.linear_model import LogisticRegression
 
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -100,6 +102,7 @@ svc_params = {
     'kernel' : 'linear',
     'C' : 0.025
     }
+dt_params = {}
 
 # Define function to extract titles from passenger names
 def get_title(name):
@@ -222,6 +225,9 @@ class SklearnHelper(object):
     def feature_importances(self, x, y):
         return (self.clf.fit(x, y).feature_importances_)
 
+    def score(self, x, y):
+        return self.clf.score(x, y)
+
 # Out-of-Fold Predictions
 # one cannot simply train the base models on the full training data, generate predictions on the full test set and then output these for the second-level training. This runs the risk of your base model predictions already having "seen" the test set and therefore overfitting when feeding these predictions.
 # clf is the model
@@ -256,6 +262,50 @@ def create_first_layer_models():
     svc = SklearnHelper(clf=SVC, seed=SEED, params=svc_params)
     return [rf, et, ada, gb, svc]
 
+# borrow best models from feature_engineering.py: DecisionTreeClassifier
+def create_first_layer_models_2():
+    rf = SklearnHelper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
+    et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
+    ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
+    gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
+    dt = SklearnHelper(clf=DecisionTreeClassifier, seed=SEED, params=dt_params)
+    return [rf, et, ada, gb, dt]
+# train first layer model with feature-engineered data
+# return oof_train: the tuple of train predictions for all models using oof
+# return oof_test: the tuple of test predictions for all models using oof
+def fist_layer_training_2(models, x_train, y_train, x_test):
+    rf, et, ada, gb, dt = models
+    et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
+    rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
+    ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
+    gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
+    dt_oof_train, dt_oof_test = get_oof(dt, x_train, y_train, x_test)  # Support Vector Classifier
+    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, dt_oof_train)
+    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, dt_oof_test)
+
+    rf.fit(x_train, y_train)
+    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
+    print("rf", acc_rf)
+
+    et.fit(x_train, y_train)
+    acc_et = round(et.score(x_train, y_train) * 100, 2)
+    print("et", acc_et)
+
+    ada.fit(x_train, y_train)
+    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
+    print("ada", acc_ada)
+
+    gb.fit(x_train, y_train)
+    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
+    print("gb", acc_gb)
+
+    dt.fit(x_train, y_train)
+    acc_dt = round(dt.score(x_train, y_train) * 100, 2)
+    print("dt", acc_dt)
+
+    return oof_train, oof_test
+
+
 # train first layer model with feature-engineered data
 # return oof_train: the tuple of train predictions for all models using oof
 # return oof_test: the tuple of test predictions for all models using oof
@@ -268,6 +318,27 @@ def fist_layer_training(models, x_train, y_train, x_test):
     svc_oof_train, svc_oof_test = get_oof(svc, x_train, y_train, x_test)  # Support Vector Classifier
     oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, svc_oof_train)
     oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, svc_oof_test)
+
+    rf.fit(x_train, y_train)
+    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
+    print("rf", acc_rf)
+
+    et.fit(x_train, y_train)
+    acc_et = round(et.score(x_train, y_train) * 100, 2)
+    print("et", acc_et)
+
+    ada.fit(x_train, y_train)
+    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
+    print("ada", acc_ada)
+
+    gb.fit(x_train, y_train)
+    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
+    print("gb", acc_gb)
+
+    svc.fit(x_train, y_train)
+    acc_svc = round(svc.score(x_train, y_train) * 100, 2)
+    print("svc", acc_svc)
+
     return oof_train, oof_test
 
 # concatenated and joined both the first-level train and test predictions as x_train and x_test, we can now fit a second-level learning model.
@@ -290,6 +361,10 @@ def create_second_layer_model(x_train_2, x_test_2):
         # learning_rate = 0.02,
         scale_pos_weight=1).fit(x_train_2, x_test_2)
     return gbm
+
+def create_second_layer_model_2(x_train_2, x_test_2):
+    lgs = LogisticRegression().fit(x_train_2, x_test_2)
+    return lgs
 
 def submission(PassengerId, predictions):
     StackingSubmission = pd.DataFrame({'PassengerId': PassengerId,
@@ -358,5 +433,52 @@ def Model(train, test):
     print('Train accuracy:', acc_gbm)
     # submission(PassengerId, predictions)
 
+def Model_2(train, test):
+    # feature engineer the first stack
+    x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
+
+    # get Pearson_Correlation_of_Features
+    # x_train_df = pd.DataFrame(data=x_train, columns=
+    # ['Pclass', 'Sex', 'Age', 'Parch', 'Fare', 'Embarked', 'Name_length', 'Has_Cabin',
+    #  'FamilySize', 'IsAlone', 'Title'])
+    # Pearson_Correlation_of_Features(x_train_df)
+
+    # create all models for first stack training
+    models = create_first_layer_models_2()
+
+    # train first stack
+    oof_train, oof_test = fist_layer_training_2(models, x_train, y_train, x_test)
+    print('===first layer training finished===')
+
+    # option to output feature importance and use excel pie chart to visualize
+    # feature_importance(x_train, y_train, models, tr)
+
+    # produce second stack input from first stack output
+    x_train_2, x_test_2 = produce_second_input_from_first_output(oof_train, oof_test)
+
+    # train second stack
+    lgs = create_second_layer_model_2(x_train_2, y_train)
+    acc_lgs = round(lgs.score(x_train_2, y_train) * 100, 2)
+    print('Train accuracy:', acc_lgs)
+    # submission(PassengerId, predictions)
+
 if __name__== "__main__":
-    Model(train, test)
+    # Model(train, test)
+    """
+    rf 86.31
+    et 87.32
+    ada 84.4
+    gb 96.52
+    svc 81.48
+    Train accuracy: 86.87
+    """
+    
+    Model_2(train, test)
+    """
+    rf 86.53
+    et 87.32
+    ada 84.62
+    gb 96.86
+    dt 96.86
+    Train accuracy: 86.53
+    """
