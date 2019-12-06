@@ -8,9 +8,9 @@ import xgboost as xgb
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-import plotly.offline as py
-import plotly.graph_objs as go
-import plotly.tools as tls
+# import plotly.offline as py
+# import plotly.graph_objs as go
+# import plotly.tools as tls
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -28,8 +28,8 @@ pd.set_option('display.width', 1000)
 
 
 # Load in the train and test datasets
-train_input = '/Users/kennywang/Documents/study/self/ML_titanic/input/train.csv'
-test_input = '/Users/kennywang/Documents/study/self/ML_titanic/input/test.csv'
+train_input = './input/train.csv'
+test_input = './input/test.csv'
 train = pd.read_csv(train_input)
 test = pd.read_csv(test_input)
 
