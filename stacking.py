@@ -268,20 +268,20 @@ def create_first_layer_models_2():
     et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
     ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
     gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
-    dt = SklearnHelper(clf=DecisionTreeClassifier, seed=SEED, params=dt_params)
-    return [rf, et, ada, gb, dt]
+    lg = SklearnHelper(clf=LogisticRegression, seed=SEED, params=dt_params)
+    return [rf, et, ada, gb, lg]
 # train first layer model with feature-engineered data
 # return oof_train: the tuple of train predictions for all models using oof
 # return oof_test: the tuple of test predictions for all models using oof
 def fist_layer_training_2(models, x_train, y_train, x_test):
-    rf, et, ada, gb, dt = models
+    rf, et, ada, gb, lg = models
     et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
     rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
     ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
     gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
-    dt_oof_train, dt_oof_test = get_oof(dt, x_train, y_train, x_test)  # Support Vector Classifier
-    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, dt_oof_train)
-    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, dt_oof_test)
+    lg_oof_train, lg_oof_test = get_oof(lg, x_train, y_train, x_test)  # Support Vector Classifier
+    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, lg_oof_train)
+    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, lg_oof_test)
 
     rf.fit(x_train, y_train)
     acc_rf = round(rf.score(x_train, y_train) * 100, 2)
@@ -299,9 +299,9 @@ def fist_layer_training_2(models, x_train, y_train, x_test):
     acc_gb = round(gb.score(x_train, y_train) * 100, 2)
     print("gb", acc_gb)
 
-    dt.fit(x_train, y_train)
-    acc_dt = round(dt.score(x_train, y_train) * 100, 2)
-    print("dt", acc_dt)
+    lg.fit(x_train, y_train)
+    acc_lg = round(lg.score(x_train, y_train) * 100, 2)
+    print("lg", acc_lg)
 
     return oof_train, oof_test
 
@@ -363,8 +363,8 @@ def create_second_layer_model(x_train_2, x_test_2):
     return gbm
 
 def create_second_layer_model_2(x_train_2, x_test_2):
-    lgs = LogisticRegression().fit(x_train_2, x_test_2)
-    return lgs
+    dt = DecisionTreeClassifier().fit(x_train_2, x_test_2)
+    return dt
 
 def submission(PassengerId, predictions):
     StackingSubmission = pd.DataFrame({'PassengerId': PassengerId,
@@ -431,7 +431,7 @@ def Model(train, test):
 
     acc_gbm = round(gbm.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_gbm)
-    # submission(PassengerId, predictions)
+    submission(PassengerId, predictions)
 
 def Model_2(train, test):
     # feature engineer the first stack
@@ -457,10 +457,13 @@ def Model_2(train, test):
     x_train_2, x_test_2 = produce_second_input_from_first_output(oof_train, oof_test)
 
     # train second stack
-    lgs = create_second_layer_model_2(x_train_2, y_train)
-    acc_lgs = round(lgs.score(x_train_2, y_train) * 100, 2)
-    print('Train accuracy:', acc_lgs)
-    # submission(PassengerId, predictions)
+    dt = create_second_layer_model_2(x_train_2, y_train)
+
+    # predict out final prediction
+    predictions = dt.predict(x_test_2)
+    acc_dt = round(dt.score(x_train_2, y_train) * 100, 2)
+    print('Train accuracy:', acc_dt)
+    submission(PassengerId, predictions)
 
 if __name__== "__main__":
     # Model(train, test)
@@ -472,7 +475,7 @@ if __name__== "__main__":
     svc 81.48
     Train accuracy: 86.87
     """
-    
+
     Model_2(train, test)
     """
     rf 86.53

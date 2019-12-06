@@ -388,12 +388,14 @@ def Model(train_input, test_input):
     X_train = X_train.astype(int)
     Y_train = Y_train.astype(int)
     X_test = X_test.astype(int)
+    """
 
     logreg = LogisticRegression() # 80.92
     logreg.fit(X_train, Y_train)
     Y_pred = logreg.predict(X_test)
     acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
     print("LogisticRegression:", acc_log)
+    """
 
     decision_tree = DecisionTreeClassifier()
     # feature importance
@@ -405,7 +407,9 @@ def Model(train_input, test_input):
     Y_pred = decision_tree.predict(X_test)
     acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
     print("DecisionTree", acc_decision_tree)
-    # submission(test_df, Y_pred)
+    submission(test_df, Y_pred)
+
+    """
 
     random_forest = RandomForestClassifier() # 95.4
     random_forest.fit(X_train, Y_train)
@@ -451,6 +455,7 @@ def Model(train_input, test_input):
     Y_pred = linear.predict(X_test)
     acc_linear = round(linear.score(X_train, Y_train) * 100, 2)
     print("linear", acc_linear)
+    """
 
 if __name__== "__main__":
     Model(train_input, test_input)
