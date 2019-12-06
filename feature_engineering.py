@@ -13,6 +13,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
+dirname = os.path.dirname(__file__)
 
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -20,8 +22,8 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 # data input
-train_input = '/Users/kennywang/Documents/study/self/ML_titanic/input/train.csv'
-test_input = '/Users/kennywang/Documents/study/self/ML_titanic/input/test.csv'
+train_input = os.path.join(dirname, './input/train.csv')
+test_input = os.path.join(dirname, './input/test.csv')
 
 # mappings
 title_mapping = {"Mr": 1, "Miss": 2, "Mrs": 3, "Master": 4, "Rare": 5}
@@ -274,11 +276,15 @@ random_forest.score(X_train, Y_train)
 acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
 print("RandomForest", acc_random_forest)
 
-# submission
-submission = pd.DataFrame({"PassengerId": test_df["PassengerId"], "Survived": Y_pred})
-# submission.to_csv('../output/submission.csv', index=False)
-# print(submission)
 """
+
+def submission(test_df, Y_pred):
+    submission = pd.DataFrame({
+        "PassengerId": test_df["PassengerId"],
+        "Survived": Y_pred
+    })
+    outFile = os.path.join(dirname, './output/FeatureEngineeringSubmission.csv')
+    submission.to_csv(outFile, index=False)
 
 def Model(train_input, test_input):
     train_df, test_df, combine = set_raw_data(train_input, test_input)
@@ -368,7 +374,6 @@ def Model(train_input, test_input):
     #
     # get_null_percentage(train_df)
     # get_null_percentage(test_df)
-
     # Pearson_Correlation_of_Features(train_df)
 
     print('=== Model ===')
@@ -380,18 +385,20 @@ def Model(train_input, test_input):
     Y_train = Y_train.astype(int)
     X_test = X_test.astype(int)
 
+    """
     logreg = LogisticRegression()
     logreg.fit(X_train, Y_train)
     Y_pred = logreg.predict(X_test)
     acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
     print("LogisticRegression:", acc_log)
+    """
 
     decision_tree = DecisionTreeClassifier()
     decision_tree.fit(X_train, Y_train)
     Y_pred = decision_tree.predict(X_test)
     acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
     print("DecisionTree", acc_decision_tree)
-
+    # submission(test_df, Y_pred)
 
 if __name__== "__main__":
     Model(train_input, test_input)
