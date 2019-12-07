@@ -127,4 +127,9 @@ df_all['Fare'] = df_all['Fare'].fillna(median_fare)
 
 print('-----start from here-------')
 # print(df_all[df_all['Cabin'].isna()])
-print(df_all[df_all['Cabin'].notnull()])
+# print(df_all[df_all['Cabin'].notnull()])
+
+df_all['Deck'] = df_all['Cabin'].apply(lambda carbin: carbin[0] if pd.notnull(carbin) else 'M')
+outFile = os.path.join(dirname, './output/decks.csv')
+df_all.to_csv(outFile, index=False)
+
