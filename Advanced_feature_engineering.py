@@ -130,6 +130,39 @@ print('-----start from here-------')
 # print(df_all[df_all['Cabin'].notnull()])
 
 df_all['Deck'] = df_all['Cabin'].apply(lambda carbin: carbin[0] if pd.notnull(carbin) else 'M')
-outFile = os.path.join(dirname, './output/decks.csv')
-df_all.to_csv(outFile, index=False)
+# outFile = os.path.join(dirname, './decks.csv')
+# df_all.to_csv(outFile, index=False)
+# use Tableau on decks.csv for deck visualization
 
+# There is one person on the boat deck in the T cabin and he is a 1st class passenger. T cabin passenger has the closest resemblance to A deck passengers, so he is grouped in A deck.
+print(df_all.loc[(df_all['Deck'] == 'T')])
+idx = df_all[df_all['Deck'] == 'T'].index
+df_all.loc[idx, 'Deck'] = 'A'
+print(df_all.loc[[339]]) # confirm this row is changed to Deck = 'A'
+
+"""
+By Tableau visualization:
+1. A, B and C decks are labeled as ABC because all of them have only 1st class passengers.
+2. D and E decks are labeled as DE because both of them have similar passenger class distribution and same survival rate.
+3. F and G decks are labeled as FG because of the previous reasons.
+4. M deck doesn't need to be grouped with other decks because it is very different from others and has the lowest survival rate.
+
+df_all['Deck'] = df_all['Deck'].replace(['A', 'B', 'C'], 'ABC')
+df_all['Deck'] = df_all['Deck'].replace(['D', 'E'], 'DE')
+df_all['Deck'] = df_all['Deck'].replace(['F', 'G'], 'FG')
+
+df_all['Deck'].value_counts()
+"""
+
+# Dropping the Cabin feature
+df_all.drop(['Cabin'], inplace=True, axis=1)
+
+""" no more missingness
+df_train, df_test = divide_df(df_all)
+df_train.name = 'Training Set'
+df_test.name = 'Test Set'
+dfs = [df_train, df_test]
+for df in dfs:
+    print('{}'.format(df.name))
+    display_missing(df)
+"""
