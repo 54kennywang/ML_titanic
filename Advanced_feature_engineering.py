@@ -24,7 +24,7 @@ SEED = 42
 
 sex_mapping = {'female': 1, 'male': 0}
 embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
-
+deck_mapping = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'T': 8, 'M': 0}
 
 def concat_df(train_data, test_data):
     # Returns a concatenated df of training and test set on axis 0
@@ -158,6 +158,7 @@ df_all['Deck'].value_counts()
 df_all.drop(['Cabin'], inplace=True, axis=1)
 
 """ no more missingness
+"""
 df_train, df_test = divide_df(df_all)
 df_train.name = 'Training Set'
 df_test.name = 'Test Set'
@@ -165,4 +166,26 @@ dfs = [df_train, df_test]
 for df in dfs:
     print('{}'.format(df.name))
     display_missing(df)
-"""
+
+dfs = categorical_to_ordinal(dfs, deck_mapping, 'Deck')
+df_train, df_test = dfs[0], dfs[1]
+df_all = concat_df(df_train, df_test)
+dfs = [df_train, df_test]
+print(df_train.head(3))
+print(df_test.head(3))
+
+def Pearson_Correlation_of_Features(train):
+    colormap = plt.cm.RdBu
+    plt.figure(figsize=(14,12))
+    plt.title('Pearson Correlation of Features', y=1.05, size=15)
+    sns.heatmap(train.astype(float).corr(),linewidths=0.1,vmax=1.0,
+                square=True, cmap=colormap, linecolor='white', annot=True)
+    plt.show()
+
+# Pearson_Correlation_of_Features(df_train)
+
+
+
+
+
+
