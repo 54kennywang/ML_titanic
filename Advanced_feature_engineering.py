@@ -321,14 +321,15 @@ for df in dfs:
         n = df[feature].nunique() # find num of unique vals of that feature
         cols = ['{}_{}'.format(feature, n) for n in range(0, n)] # generate new col names based on n
         encoded_df = pd.DataFrame(encoded_feat, columns=cols)
-        encoded_df.index = df.index
         if (feature == 'Age'):
-            print(encoded_feat)
-            print(n)
-            print(df.index)
+            print(encoded_df)
             print('*********')
-
+        encoded_df.index = df.index
         encoded_features.append(encoded_df)
+        if (feature == 'Age'):
+            print(encoded_df)
+            print('$$$$$$$$$$$$$')
+    print('@@@@@@@@@@@')
 
 df_train = pd.concat([df_train, *encoded_features[:len(cat_features)]], axis=1)
 df_test = pd.concat([df_test, *encoded_features[len(cat_features):]], axis=1)
