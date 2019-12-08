@@ -24,7 +24,7 @@ warnings.filterwarnings('ignore')
 SEED = 42
 
 sex_mapping = {'female': 1, 'male': 0}
-embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
+embarked_mapping = {'S': 1, 'C': 2, 'Q': 3}
 deck_mapping = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'T': 8, 'M': 0}
 title_mapping = {"Mr": 1, "Miss": 2, "Mrs": 3, "Master": 4, "Rare": 5}
 
@@ -311,25 +311,36 @@ print(df_test.tail(3))
 print('=================')
 
 # one-hot vec
-cat_features = ['Age', 'Fare', 'Parch', 'Pclass', 'Sex', 'SibSp', 'Deck', 'Embarked', 'Title', 'FamilySize', 'ticketFreq']
+cat_features = ['Age', 'Fare', 'Parch', 'Pclass', 'SibSp', 'Deck', 'Embarked', 'Title', 'FamilySize', 'ticketFreq']
 # cat_features = []
 # cat_features = ['FamilySize']
 encoded_features = []
-
 for df in dfs:
     for feature in cat_features:
         encoded_feat = OneHotEncoder().fit_transform(df[feature].values.reshape(-1, 1)).toarray()
-        n = df[feature].nunique()
-        cols = ['{}_{}'.format(feature, n) for n in range(1, n + 1)]
+        n = df[feature].nunique() # find num of unique vals of that feature
+        cols = ['{}_{}'.format(feature, n) for n in range(0, n)] # generate new col names based on n
         encoded_df = pd.DataFrame(encoded_feat, columns=cols)
         encoded_df.index = df.index
+        if (feature == 'Age'):
+            print(encoded_feat)
+            print(n)
+            print(df.index)
+            print('*********')
+
         encoded_features.append(encoded_df)
 
 df_train = pd.concat([df_train, *encoded_features[:len(cat_features)]], axis=1)
 df_test = pd.concat([df_test, *encoded_features[len(cat_features):]], axis=1)
+df_all = concat_df(df_train, df_test)
+df_all.drop(columns=cat_features, inplace=True)
+df_train, df_test = divide_df(df_all)
+df_train.name = 'Training Set'
+df_test.name = 'Test Set'
+dfs = [df_train, df_test]
 # print(df_train.head(3))
-# print(df_test.tail(3))
-# drop cols
+print(df_test.tail(3))
+# print(df_train.columns.values.tolist())
 
 
 def output(df):
