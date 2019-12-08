@@ -125,7 +125,6 @@ print(median_fare) # my own way
 df_all['Fare'] = df_all['Fare'].fillna(median_fare)
 # print(df_all.loc[[1043]]) # to confirm null is filled
 
-print('-----start from here-------')
 # print(df_all[df_all['Cabin'].isna()])
 # print(df_all[df_all['Cabin'].notnull()])
 
@@ -171,8 +170,6 @@ dfs = categorical_to_ordinal(dfs, deck_mapping, 'Deck')
 df_train, df_test = dfs[0], dfs[1]
 df_all = concat_df(df_train, df_test)
 dfs = [df_train, df_test]
-print(df_train.head(3))
-print(df_test.head(3))
 
 def Pearson_Correlation_of_Features(train):
     colormap = plt.cm.RdBu
@@ -182,10 +179,66 @@ def Pearson_Correlation_of_Features(train):
                 square=True, cmap=colormap, linecolor='white', annot=True)
     plt.show()
 
-# Pearson_Correlation_of_Features(df_train)
+def add_title_col(dfs):
+    # this will loop through all rows in both train and test, it updates train_df, test_df as well
+    print('=== extract title from name ===')
+    for dataset in dfs:
+        dataset['Title'] = dataset.Name.str.extract(' ([A-Za-z]+)\.', expand=False) # use regex to generate Title
+    return dfs
+
+dfs = add_title_col(dfs)
+df_train, df_test = dfs[0], dfs[1]
+
+def caregorize_title(dfs):
+    for dataset in dfs:
+        dataset['Title'] = dataset['Title'].replace(['Col', 'Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona', 'Don'], 'Rare')
+        dataset['Title'] = dataset['Title'].replace('Mlle', 'Miss')
+        dataset['Title'] = dataset['Title'].replace('Ms', 'Miss')
+        dataset['Title'] = dataset['Title'].replace('Mme', 'Mrs')
+    return dfs
+
+# dfs = caregorize_title(dfs)
+# df_train, df_test = dfs[0], dfs[1]
+
+def add_name_length(dfs):
+    # this will loop through all rows in both train and test, it updates train_df, test_df as well
+    print('=== extract title length from name ===')
+    for dataset in dfs:
+        dataset['nameLen'] = dataset['Name'].apply(len)
+    return dfs
+
+dfs = add_name_length(dfs)
+df_train, df_test = dfs[0], dfs[1]
 
 
+def add_name_length(dfs):
+    # this will loop through all rows in both train and test, it updates train_df, test_df as well
+    print('=== extract title length from name ===')
+    for dataset in dfs:
+        dataset['nameLen'] = dataset['Name'].apply(len)
+    return dfs
+
+def create_FamilySize(dfs):
+    print('=== Create family size ===')
+    for dataset in dfs:
+        dataset['FamilySize'] = dataset['SibSp'] + dataset['Parch'] + 1
+    return dfs
+
+dfs = create_FamilySize(dfs)
+df_train, df_test = dfs[0], dfs[1]
+
+def create_IsAlone(dfs):
+    print('=== Create IsAlone ===')
+    for dataset in dfs:
+        dataset['IsAlone'] = 0
+        dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
+    return dfs
+
+dfs = create_IsAlone(dfs)
+df_train, df_test = dfs[0], dfs[1]
 
 
+print(df_train.head(20))
+print(df_test.tail(20))
 
-
+# ticket frequency
