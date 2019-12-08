@@ -302,13 +302,34 @@ df_train = drop_col(df_train, 'Name')
 df_train = drop_col(df_train, 'Ticket')
 df_test = drop_col(df_test, 'Name')
 df_test = drop_col(df_test, 'Ticket')
+df_train = df_train.astype(int)
+df_test = df_test.astype(int)
 df_all = concat_df(df_train, df_test)
 dfs = [df_train, df_test]
 print(df_train.head(3))
 print(df_test.tail(3))
-
+print('=================')
 
 # one-hot vec
+cat_features = ['Age', 'Fare', 'Parch', 'Pclass', 'Sex', 'SibSp', 'Deck', 'Embarked', 'Title', 'FamilySize', 'ticketFreq']
+# cat_features = []
+# cat_features = ['FamilySize']
+encoded_features = []
+
+for df in dfs:
+    for feature in cat_features:
+        encoded_feat = OneHotEncoder().fit_transform(df[feature].values.reshape(-1, 1)).toarray()
+        n = df[feature].nunique()
+        cols = ['{}_{}'.format(feature, n) for n in range(1, n + 1)]
+        encoded_df = pd.DataFrame(encoded_feat, columns=cols)
+        encoded_df.index = df.index
+        encoded_features.append(encoded_df)
+
+df_train = pd.concat([df_train, *encoded_features[:len(cat_features)]], axis=1)
+df_test = pd.concat([df_test, *encoded_features[len(cat_features):]], axis=1)
+# print(df_train.head(3))
+# print(df_test.tail(3))
+# drop cols
 
 
 def output(df):
