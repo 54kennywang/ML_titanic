@@ -1,3 +1,4 @@
+# bin-ing is based on visualization (bin by proper gap + gropu by characteristics)
 import numpy as np
 import pandas as pd
 # set dataFrame display properties
@@ -25,6 +26,7 @@ SEED = 42
 sex_mapping = {'female': 1, 'male': 0}
 embarked_mapping = {'S': 0, 'C': 1, 'Q': 2}
 deck_mapping = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'T': 8, 'M': 0}
+title_mapping = {"Mr": 1, "Miss": 2, "Mrs": 3, "Master": 4, "Rare": 5}
 
 def concat_df(train_data, test_data):
     # Returns a concatenated df of training and test set on axis 0
@@ -189,6 +191,7 @@ def add_title_col(dfs):
 dfs = add_title_col(dfs)
 df_train, df_test = dfs[0], dfs[1]
 
+# ['Mr', 'Mrs', 'Miss', 'Master', 'Don', 'Rev', 'Dr', 'Mme', 'Ms', 'Major', 'Lady', 'Sir', 'Mlle', 'Col', 'Capt', 'Countess', 'Jonkheer']
 def caregorize_title(dfs):
     for dataset in dfs:
         dataset['Title'] = dataset['Title'].replace(['Col', 'Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona', 'Don'], 'Rare')
@@ -197,8 +200,8 @@ def caregorize_title(dfs):
         dataset['Title'] = dataset['Title'].replace('Mme', 'Mrs')
     return dfs
 
-# dfs = caregorize_title(dfs)
-# df_train, df_test = dfs[0], dfs[1]
+dfs = caregorize_title(dfs)
+df_train, df_test = dfs[0], dfs[1]
 
 def add_name_length(dfs):
     # this will loop through all rows in both train and test, it updates train_df, test_df as well
@@ -210,13 +213,8 @@ def add_name_length(dfs):
 dfs = add_name_length(dfs)
 df_train, df_test = dfs[0], dfs[1]
 
-
-def add_name_length(dfs):
-    # this will loop through all rows in both train and test, it updates train_df, test_df as well
-    print('=== extract title length from name ===')
-    for dataset in dfs:
-        dataset['nameLen'] = dataset['Name'].apply(len)
-    return dfs
+dfs = categorical_to_ordinal(dfs, title_mapping, 'Title')
+df_train, df_test = dfs[0], dfs[1]
 
 def create_FamilySize(dfs):
     print('=== Create family size ===')
@@ -227,18 +225,96 @@ def create_FamilySize(dfs):
 dfs = create_FamilySize(dfs)
 df_train, df_test = dfs[0], dfs[1]
 
+
+def create_ticketFreq(dfs):
+    print('=== Create ticketFreq ===')
+    for dataset in dfs:
+        dataset['ticketFreq'] = dataset.groupby('Ticket')['Ticket'].transform('count')
+    return dfs
+
+dfs = create_ticketFreq(dfs)
+df_train, df_test = dfs[0], dfs[1]
+
+#
 def create_IsAlone(dfs):
     print('=== Create IsAlone ===')
     for dataset in dfs:
         dataset['IsAlone'] = 0
-        dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
+        dataset.loc[(dataset['FamilySize'] == 1) & (dataset['ticketFreq'] == 1), 'IsAlone'] = 1
     return dfs
 
 dfs = create_IsAlone(dfs)
 df_train, df_test = dfs[0], dfs[1]
 
 
-print(df_train.head(20))
-print(df_test.tail(20))
+"""
+[0, 5]
+[5, 25]
+[25, 30]
+[30, 35]
+[35, 40]
+[40, 65]
+[65, 80]
+"""
+def convert_age_to_ordinal_based_on_bins(dfs):
+    print('=== convert age to ordinal value based on age bins ===')
+    for dataset in dfs:
+        dataset.loc[ dataset['Age'] <= 5, 'Age'] = 0
+        dataset.loc[(dataset['Age'] > 5) & (dataset['Age'] <= 25), 'Age'] = 1
+        dataset.loc[(dataset['Age'] > 25) & (dataset['Age'] <= 30), 'Age'] = 2
+        dataset.loc[(dataset['Age'] > 30) & (dataset['Age'] <= 35), 'Age'] = 3
+        dataset.loc[(dataset['Age'] > 35) & (dataset['Age'] <= 40), 'Age'] = 4
+        dataset.loc[(dataset['Age'] > 40) & (dataset['Age'] <= 65), 'Age'] = 5
+        dataset.loc[ dataset['Age'] > 65, 'Age'] = 6
+    return dfs
 
-# ticket frequency
+dfs = convert_age_to_ordinal_based_on_bins(dfs)
+df_train, df_test = dfs[0], dfs[1]
+
+"""
+[0, 15]
+[15, 75]
+[75, 120]
+[120, 135]
+[135, 510]
+"""
+def convert_fare_to_ordinal_based_on_bins(dfs):
+    print('=== convert fare to ordinal value based on fare bins ===')
+    for dataset in dfs:
+        dataset.loc[ dataset['Fare'] <= 15, 'Fare'] = 0
+        dataset.loc[(dataset['Fare'] > 15) & (dataset['Fare'] <= 75), 'Fare'] = 1
+        dataset.loc[(dataset['Fare'] > 75) & (dataset['Fare'] <= 120), 'Fare'] = 2
+        dataset.loc[(dataset['Fare'] > 120) & (dataset['Fare'] <= 135), 'Fare'] = 3
+        dataset.loc[ dataset['Fare'] > 135, 'Fare'] = 4
+        dataset['Fare'] = dataset['Fare'].astype(int)
+    return dfs
+
+dfs = convert_fare_to_ordinal_based_on_bins(dfs)
+df_train, df_test = dfs[0], dfs[1]
+
+
+def drop_col(df, col_arr, axis=1):
+    print('=== Drop useless cols ===')
+    df = df.drop(col_arr, axis=axis)
+    return df
+
+df_train = drop_col(df_train, 'Name')
+df_train = drop_col(df_train, 'Ticket')
+df_test = drop_col(df_test, 'Name')
+df_test = drop_col(df_test, 'Ticket')
+df_all = concat_df(df_train, df_test)
+dfs = [df_train, df_test]
+print(df_train.head(3))
+print(df_test.tail(3))
+
+
+# one-hot vec
+
+
+def output(df):
+    outFile = os.path.join(dirname, './output/data_to_be_analyzed.csv')
+    df.to_csv(outFile, index=False)
+
+# output(df_train)
+# imputation
+# drop nameLen
