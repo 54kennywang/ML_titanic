@@ -310,36 +310,39 @@ print(df_train.head(3))
 print(df_test.tail(3))
 print('=================')
 
+print(df_train.describe())
+print(df_test.describe())
+
 # one-hot vec
 cat_features = ['Age', 'Fare', 'Parch', 'Pclass', 'SibSp', 'Deck', 'Embarked', 'Title', 'FamilySize', 'ticketFreq']
-# cat_features = []
-# cat_features = ['FamilySize']
-encoded_features = []
+encoded_features = [] # one-hot vec of train+test
 for df in dfs:
     for feature in cat_features:
-        encoded_feat = OneHotEncoder().fit_transform(df[feature].values.reshape(-1, 1)).toarray()
+        encoded_feat = OneHotEncoder().fit_transform(df[feature].values.reshape(-1, 1)).toarray() # data transformation to one-hot
         n = df[feature].nunique() # find num of unique vals of that feature
         cols = ['{}_{}'.format(feature, n) for n in range(0, n)] # generate new col names based on n
-        encoded_df = pd.DataFrame(encoded_feat, columns=cols)
-        if (feature == 'Age'):
-            print(encoded_df)
-            print('*********')
+        encoded_df = pd.DataFrame(encoded_feat, columns=cols) # one-hot data pair with new cols from above
         encoded_df.index = df.index
         encoded_features.append(encoded_df)
-        if (feature == 'Age'):
-            print(encoded_df)
-            print('$$$$$$$$$$$$$')
-    print('@@@@@@@@@@@')
-
+# separate train + test from encoded_features
+print('###########')
+print(encoded_features[2])
+print('*******')
+print(encoded_features[12])
+print('###########')
 df_train = pd.concat([df_train, *encoded_features[:len(cat_features)]], axis=1)
 df_test = pd.concat([df_test, *encoded_features[len(cat_features):]], axis=1)
+
+
+
 df_all = concat_df(df_train, df_test)
+# drop old cols that are used to generate one-hot
 df_all.drop(columns=cat_features, inplace=True)
 df_train, df_test = divide_df(df_all)
 df_train.name = 'Training Set'
 df_test.name = 'Test Set'
 dfs = [df_train, df_test]
-# print(df_train.head(3))
+print(df_train.head(3))
 print(df_test.tail(3))
 # print(df_train.columns.values.tolist())
 
