@@ -17,11 +17,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
 
 import string
 import warnings
 warnings.filterwarnings('ignore')
-SEED = 42
 
 sex_mapping = {'female': 1, 'male': 0}
 embarked_mapping = {'S': 1, 'C': 2, 'Q': 3}
@@ -235,7 +235,6 @@ def create_ticketFreq(dfs):
 dfs = create_ticketFreq(dfs)
 df_train, df_test = dfs[0], dfs[1]
 
-#
 def create_IsAlone(dfs):
     print('=== Create IsAlone ===')
     for dataset in dfs:
@@ -310,6 +309,7 @@ print(df_train.head(3))
 print(df_test.tail(3))
 print('=================')
 
+"""
 print(df_train.describe())
 print(df_test.describe())
 
@@ -345,7 +345,30 @@ dfs = [df_train, df_test]
 print(df_train.head(3))
 print(df_test.tail(3))
 # print(df_train.columns.values.tolist())
+"""
 
+X_train = df_train.drop(["PassengerId", "Survived"], axis=1)
+Y_train = df_train["Survived"]
+X_test = df_test.drop("PassengerId", axis=1).copy()
+X_train = X_train.astype(int)
+Y_train = Y_train.astype(int)
+X_test = X_test.astype(int)
+
+print(X_train.head(3))
+print(Y_train.head(3))
+print(X_test.tail(3))
+decision_tree = DecisionTreeClassifier()
+decision_tree.fit(X_train, Y_train) # 96.3
+Y_pred = decision_tree.predict(X_test)
+acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
+print("DecisionTree", acc_decision_tree)
+
+# submission = pd.DataFrame({
+#     "PassengerId": df_test["PassengerId"],
+#     "Survived": Y_pred
+#     })
+# outFile = os.path.join(dirname, './output/AdvancedFeatureEngineeringSubmission.csv')
+# submission.to_csv(outFile, index=False)
 
 def output(df):
     outFile = os.path.join(dirname, './output/data_to_be_analyzed.csv')

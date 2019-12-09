@@ -16,6 +16,7 @@ oof: when train a model m by (x, y), instead of using all x at once to get loss 
 """
 
 # Load in our libraries
+from Advanced_feature_engineering_refactored import advanced_feature_engineer
 import pandas as pd
 import numpy as np
 import re
@@ -202,6 +203,8 @@ def fist_layer_feature_engineering(train, test):
     # Create Numpy arrays of train, test and target ( Survived) dataframes to feed into our models
     y_train = train['Survived'].ravel()
     train = train.drop(['Survived'], axis=1)
+    print(train.head(3))
+    print(test.head(3))
     tr = train
     x_train = train.values  # Creates an array of the train data
     x_test = test.values  # Creats an array of the test data
@@ -369,7 +372,10 @@ def create_second_layer_model_2(x_train_2, x_test_2):
 def submission(PassengerId, predictions):
     StackingSubmission = pd.DataFrame({'PassengerId': PassengerId,
                                        'Survived': predictions})
-    outFile = os.path.join(dirname, './output/StackingSubmission.csv')
+    out = './output/advanced.csv'
+    # out = './output/StackingSubmission.csv'
+    outFile = os.path.join(dirname, out)
+    print('===output pred to '+out+'===')
     StackingSubmission.to_csv(outFile, index=False)
 
 """
@@ -402,7 +408,8 @@ def feature_importance(x_train, y_train, models, tr):
 
 def Model(train, test):
     # feature engineer the first stack
-    x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
+    # x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
 
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
@@ -436,7 +443,6 @@ def Model(train, test):
 def Model_2(train, test):
     # feature engineer the first stack
     x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
-
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
     # ['Pclass', 'Sex', 'Age', 'Parch', 'Fare', 'Embarked', 'Name_length', 'Has_Cabin',
@@ -466,7 +472,7 @@ def Model_2(train, test):
     submission(PassengerId, predictions)
 
 if __name__== "__main__":
-    # Model(train, test)
+    Model(train, test)
     """
     rf 86.31
     et 87.32
@@ -476,7 +482,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    Model_2(train, test)
+    # Model_2(train, test)
     """
     rf 86.53
     et 87.32
