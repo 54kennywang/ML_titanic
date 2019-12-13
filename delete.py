@@ -5,28 +5,26 @@ warnings.filterwarnings('ignore')
 import numpy as np
 
 
-d1 = {'c1': [1, 2], 'c2': [3, 4]}
-df_train = pd.DataFrame(data=d1)
-d2 = {'c1': [3, 5], 'c2': [6, 9]}
-df_test = pd.DataFrame(data=d2)
-dfs = [df_train, df_test]
-print(df_train)
-print(df_test)
+d1 = {'Sex': ['male', 'female']}
+d1 = pd.DataFrame(data=d1)
+print(d1)
+label = LabelEncoder()
+d1['Sex_Code'] = label.fit_transform(d1['Sex'])
+print(d1)
 
-cat_features = ['c1']
-encoded_features = []
+data1_x = ['Sex']
+data1_x_calc = ['Sex_Code']
+Target = ['Survived']
+data1_xy =  Target + data1_x
+print('Original X Y: ', data1_xy, '\n')
 
-for df in dfs:
-    for feature in cat_features:
-        encoded_feat = OneHotEncoder().fit_transform(df[feature].values.reshape(-1, 1)).toarray()
-        n = df[feature].nunique()
-        cols = ['{}_{}'.format(feature, n) for n in range(1, n + 1)]
-        encoded_df = pd.DataFrame(encoded_feat, columns=cols)
-        encoded_df.index = df.index
-        encoded_features.append(encoded_df)
+data1_x_bin = ['Sex_Code']
+data1_xy_bin = Target + data1_x_bin
+print('Bin X Y: ', data1_xy_bin, '\n')
 
-df_train = pd.concat([df_train, *encoded_features[:len(cat_features)]], axis=1)
-df_test = pd.concat([df_test, *encoded_features[len(cat_features):]], axis=1)
-
-print(df_train)
-print(df_test)
+data1_dummy = pd.get_dummies(d1[data1_x])
+print(data1_dummy, '\n')
+data1_x_dummy = data1_dummy.columns.tolist()
+print(data1_x_dummy, '\n')
+data1_xy_dummy = Target + data1_x_dummy
+print('Dummy X Y: ', data1_xy_dummy, '\n')
