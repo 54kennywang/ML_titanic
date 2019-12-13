@@ -1,5 +1,9 @@
+# one-hot problem not solved, in practice.py
 # bin-ing is based on visualization (bin by proper gap + gropu by characteristics)
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_curve, auc
 import pandas as pd
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -11,6 +15,8 @@ dirname = os.path.dirname(__file__)
 
 import warnings
 warnings.filterwarnings('ignore')
+
+SEED = 42
 
 sex_mapping = {'female': 1, 'male': 0}
 embarked_mapping = {'S': 1, 'C': 2, 'Q': 3}
@@ -249,6 +255,5 @@ def advanced_feature_engineer(df_train, df_test):
     x_train = train.values  # Creates an array of the train data
     x_test = test.values  # Creats an array of the test data
     return x_train, y_train, x_test, tr
-
 if __name__== "__main__":
     advanced_feature_engineer(df_train, df_test)

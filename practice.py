@@ -55,6 +55,7 @@ for df in dfs:
         cols = ['{}_{}'.format(feature, n) for n in range(0, n)]  # generate new col names based on n
         print('encoded_feat: ', encoded_feat)
         print('cols: ', cols)
+        print()
         encoded_df = pd.DataFrame(encoded_feat, columns=cols)  # one-hot data pair with new cols from above
         encoded_df.index = df.index
         encoded_features.append(encoded_df)

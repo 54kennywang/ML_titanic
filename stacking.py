@@ -470,7 +470,7 @@ def Model_2(train, test):
     predictions = dt.predict(x_test_2).astype(int)
     acc_dt = round(dt.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_dt)
-    submission(PassengerId, predictions)
+    # submission(PassengerId, predictions)
 
 if __name__== "__main__":
     # Model(train, test)
