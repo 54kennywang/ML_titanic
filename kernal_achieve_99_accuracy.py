@@ -1,4 +1,6 @@
 #load packages
+import os
+dirname = os.path.dirname(__file__)
 import sys #access to system parameters https://docs.python.org/3/library/sys.html
 print("Python version: {}". format(sys.version))
 
@@ -369,8 +371,8 @@ MLA_compare = pd.DataFrame(columns = MLA_columns)
 
 #create table to compare MLA predictions
 MLA_predict = data1[Target]
-# print(MLA_predict)
-# MLA_predict_on_test =
+MLA_predict_on_test = pd.DataFrame(pd.np.empty((data_val.shape[0], 1)) * 0, columns=['Survived'])
+# print(MLA_predict_on_test)
 
 #index through MLA and save performance to table
 row_index = 0
@@ -392,16 +394,31 @@ for alg in MLA:
 
     # save MLA predictions - see section 6 for usage
     alg.fit(data1[data1_x_bin], data1[Target])
-    MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin])
-    # MLA_predict[MLA_name] = alg.predict(data_val[data1_x_bin])
+    # MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin])
+    MLA_predict_on_test[MLA_name] = alg.predict(data_val[data1_x_bin])
 
     row_index += 1
 
 #print and sort table: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.sort_values.html
 MLA_compare.sort_values(by = ['MLA Test Accuracy Mean'], ascending = False, inplace = True)
-# print(MLA_compare)
-# print()
-# print(MLA_predict)
+print(MLA_compare)
+print()
+""" submission
+del MLA_predict_on_test['Survived']
+print(MLA_predict_on_test)
+MLA_predict_on_test['predict'] = round(MLA_predict_on_test.mean(axis=1)).astype(int)
+print(MLA_predict_on_test['predict'])
+
+print(data_val['PassengerId'])
+achieve_99_models_submission = pd.DataFrame({'PassengerId': data_val['PassengerId'],
+                                       'Survived': MLA_predict_on_test['predict']})
+print(achieve_99_models_submission)
+out = './output/achieve_99_models.csv'
+outFile = os.path.join(dirname, out)
+print('===output pred to '+out+'===')
+achieve_99_models_submission.to_csv(outFile, index=False)
+"""
+
 
 """
 #barplot using https://seaborn.pydata.org/generated/seaborn.barplot.html
@@ -413,7 +430,66 @@ plt.ylabel('Algorithm')
 plt.show()
 """
 
-# print(data1[data1_x_bin])
-# print()
-# print(data_val[data1_x_bin])
+# IMPORTANT: This is a handmade model for learning purposes only.
+# However, it is possible to create your own predictive model without a fancy algorithm :)
+# coin flip model with random 1/survived 0/died
+# iterate over dataFrame rows as (index, Series) pairs: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.iterrows.html
+for index, row in data1.iterrows():
+    # random number generator: https://docs.python.org/2/library/random.html
+    if random.random() > .5:  # Random float x, 0.0 <= x < 1.0
+        data1.set_value(index, 'Random_Predict', 1)  # predict survived/1
+    else:
+        data1.set_value(index, 'Random_Predict', 0)  # predict died/0
 
+#score random guess of survival. Use shortcut 1 = Right Guess and 0 = Wrong Guess
+#the mean of the column will then equal the accuracy
+data1['Random_Score'] = 0 #assume prediction wrong
+data1.loc[(data1['Survived'] == data1['Random_Predict']), 'Random_Score'] = 1 #set to 1 for correct prediction
+print('Coin Flip Model Accuracy: {:.2f}%'.format(data1['Random_Score'].mean()*100))
+
+#we can also use scikit's accuracy_score function to save us a few lines of code
+#http://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score
+print('Coin Flip Model Accuracy w/SciKit: {:.2f}%'.format(metrics.accuracy_score(data1['Survived'], data1['Random_Predict'])*100))
+
+
+# handmade data model using brain power (and Microsoft Excel Pivot Tables for quick calculations)
+def mytree(df):
+    # initialize table to store predictions
+    Model = pd.DataFrame(data={'Predict': []})
+    male_title = ['Master']  # survived titles
+
+    for index, row in df.iterrows():
+
+        # Question 1: Were you on the Titanic; majority died
+        Model.loc[index, 'Predict'] = 0
+
+        # Question 2: Are you female; majority survived
+        if (df.loc[index, 'Sex'] == 'female'):
+            Model.loc[index, 'Predict'] = 1
+
+        # Question 3A Female - Class and Question 4 Embarked gain minimum information
+
+        # Question 5B Female - FareBin; set anything less than .5 in female node decision tree back to 0
+        if ((df.loc[index, 'Sex'] == 'female') &
+                (df.loc[index, 'Pclass'] == 3) &
+                (df.loc[index, 'Embarked'] == 'S') &
+                (df.loc[index, 'Fare'] > 8)
+
+        ):
+            Model.loc[index, 'Predict'] = 0
+
+        # Question 3B Male: Title; set anything greater than .5 to 1 for majority survived
+        if ((df.loc[index, 'Sex'] == 'male') &
+                (df.loc[index, 'Title'] in male_title)
+        ):
+            Model.loc[index, 'Predict'] = 1
+
+    return Model
+#model data
+Tree_Predict = mytree(data1)
+print('Decision Tree Model Accuracy/Precision Score: {:.2f}%\n'.format(metrics.accuracy_score(data1['Survived'], Tree_Predict)*100))
+
+#Accuracy Summary Report with http://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html#sklearn.metrics.classification_report
+#Where recall score = (true positives)/(true positive + false negative) w/1 being best:http://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html#sklearn.metrics.recall_score
+#And F1 score = weighted average of precision and recall w/1 being best: http://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
+print(metrics.classification_report(data1['Survived'], Tree_Predict))
