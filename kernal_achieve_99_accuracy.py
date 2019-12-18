@@ -370,6 +370,7 @@ MLA = [
     #xgboost: http://xgboost.readthedocs.io/en/latest/model.html
     XGBClassifier()
     ]
+
 #split dataset in cross-validation with this splitter class: http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ShuffleSplit.html
 # #sklearn.model_selection.ShuffleSplit
 #note: this is an alternative to train_test_split
@@ -461,7 +462,6 @@ print('Coin Flip Model Accuracy: {:.2f}%'.format(data1['Random_Score'].mean()*10
 #we can also use scikit's accuracy_score function to save us a few lines of code
 #http://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score
 print('Coin Flip Model Accuracy w/SciKit: {:.2f}%'.format(metrics.accuracy_score(data1['Survived'], data1['Random_Predict'])*100))
-
 
 # handmade data model using brain power (and Microsoft Excel Pivot Tables for quick calculations)
 def mytree(df):
