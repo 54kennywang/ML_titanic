@@ -174,7 +174,7 @@ def cross_validation_split_2():
     cv_split = model_selection.ShuffleSplit(n_splits=10, test_size=.3, train_size=.6, random_state=0)
     return cv_split
 
-def multi_classifier_model(data1, Target, data_val, MLA, data1_x_bin, cv_split):
+def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv_split):
     # create table to compare MLA metrics
     MLA_columns = ['MLA_Name', 'MLA_Parameters', 'MLA_Train_Accuracy_Mean', 'MLA_Test_Accuracy_Mean',
                    'MLA_Test_Accuracy_3*STD', 'MLA_Time']
@@ -213,8 +213,10 @@ def multi_classifier_model(data1, Target, data_val, MLA, data1_x_bin, cv_split):
 
     # print and sort table: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.sort_values.html
     MLA_compare.sort_values(by=['MLA_Test_Accuracy_Mean'], ascending=False, inplace=True)
+    print('======MLA_compare=====')
     print(MLA_compare)
-    print()
+    print('======MLA_predict=====')
+    print(MLA_predict)
     return MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val
 
 def all_classifiers():
@@ -313,17 +315,17 @@ def flip_a_coin(data1):
 # handmade data model using brain power (and Microsoft Excel Pivot Tables for quick calculations)
 def mytree(df):
     # initialize table to store predictions
-    Model = pd.DataFrame(data={'Predict': []})
+    myModel = pd.DataFrame(data={'Predict': []})
     male_title = ['Master']  # survived titles
 
     for index, row in df.iterrows():
 
         # Question 1: Were you on the Titanic; majority died
-        Model.loc[index, 'Predict'] = 0
+        myModel.loc[index, 'Predict'] = 0
 
         # Question 2: Are you female; majority survived
         if (df.loc[index, 'Sex'] == 'female'):
-            Model.loc[index, 'Predict'] = 1
+            myModel.loc[index, 'Predict'] = 1
 
         # Question 3A Female - Class and Question 4 Embarked gain minimum information
 
@@ -334,15 +336,153 @@ def mytree(df):
                 (df.loc[index, 'Fare'] > 8)
 
         ):
-            Model.loc[index, 'Predict'] = 0
+            myModel.loc[index, 'Predict'] = 0
 
         # Question 3B Male: Title; set anything greater than .5 to 1 for majority survived
         if ((df.loc[index, 'Sex'] == 'male') &
                 (df.loc[index, 'Title'] in male_title)
         ):
-            Model.loc[index, 'Predict'] = 1
+            myModel.loc[index, 'Predict'] = 1
+    return myModel
 
-    return Model
+
+def decisionTree_no_hyperparam_tune(data1, data1_x_bin, Target, cv_split):
+    # hyperparam tuning
+    # base model
+    dtree = tree.DecisionTreeClassifier(random_state=0)
+    base_results = model_selection.cross_validate(dtree, data1[data1_x_bin], data1[Target], cv=cv_split, return_train_score=True)
+    dtree.fit(data1[data1_x_bin], data1[Target])
+
+    print('BEFORE DT Parameters: ', dtree.get_params())
+    print("BEFORE DT Training w/bin score mean: {:.2f}".format(base_results['train_score'].mean() * 100))
+    print("BEFORE DT Test w/bin score mean: {:.2f}".format(base_results['test_score'].mean() * 100))
+    print("BEFORE DT Test w/bin score 3*std: +/- {:.2f}".format(base_results['test_score'].std() * 100 * 3))
+    # print("BEFORE DT Test w/bin set score min: {:.2f}". format(base_results['test_score'].min()*100))
+    print('-' * 10)
+    return dtree, base_results
+
+def decisionTree_with_hyperparam_tune(data1, data1_x_bin, Target, cv_split):
+    # tune hyper-parameters: http://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html#sklearn.tree.DecisionTreeClassifier
+    param_grid = {'criterion': ['gini', 'entropy'],
+                  # scoring methodology; two supported formulas for calculating information gain - default is gini
+                  # 'splitter': ['best', 'random'], #splitting methodology; two supported strategies - default is best
+                  'max_depth': [2, 4, 6, 8, 10, None],  # max depth tree can grow; default is none
+                  # 'min_samples_split': [2,5,10,.03,.05], #minimum subset size BEFORE new split (fraction is % of total); default is 2
+                  # 'min_samples_leaf': [1,5,10,.03,.05], #minimum subset size AFTER new split split (fraction is % of total); default is 1
+                  # 'max_features': [None, 'auto'], #max features to consider when performing split; default none or all
+                  'random_state': [0]
+                  # seed or control random number generator: https://www.quora.com/What-is-seed-in-random-number-generation
+                  }
+
+    # print(list(model_selection.ParameterGrid(param_grid)))
+
+    # choose best model with grid_search: #http://scikit-learn.org/stable/modules/grid_search.html#grid-search
+    # http://scikit-learn.org/stable/auto_examples/model_selection/plot_grid_search_digits.html
+    # Exhaustive search over specified parameter values for an estimator
+    tune_model = model_selection.GridSearchCV(tree.DecisionTreeClassifier(), param_grid=param_grid, scoring='roc_auc', cv=cv_split, return_train_score=True)
+    tune_model.fit(data1[data1_x_bin], data1[Target])
+
+    # print(tune_model.cv_results_.keys())
+    # print(tune_model.cv_results_['params'])
+    print('AFTER DT Parameters: ', tune_model.best_params_)
+    # print(tune_model.cv_results_['mean_train_score'])
+    print("AFTER DT Training w/bin score mean: {:.2f}".format(tune_model.cv_results_['mean_train_score'][tune_model.best_index_] * 100))
+    # print(tune_model.cv_results_['mean_test_score'])
+    print("AFTER DT Test w/bin score mean: {:.2f}".format(tune_model.cv_results_['mean_test_score'][tune_model.best_index_] * 100))
+    print("AFTER DT Test w/bin score 3*std: +/- {:.2f}".format(tune_model.cv_results_['std_test_score'][tune_model.best_index_] * 100 * 3))
+    print('-' * 10)
+    return tune_model, param_grid
+
+def feature_select(data1, data1_x_bin, dtree, base_results, cv_split, Target):
+    # Feature Selection
+    # more predictor variables do not make a better model, but the right predictors do.
+    print('BEFORE DT RFE Training Shape Old: ', data1[data1_x_bin].shape)
+    print('BEFORE DT RFE Training Columns Old: ', data1[data1_x_bin].columns.values.tolist())
+
+    print("BEFORE DT RFE Training w/bin score mean: {:.2f}".format(base_results['train_score'].mean() * 100))
+    print("BEFORE DT RFE Test w/bin score mean: {:.2f}".format(base_results['test_score'].mean() * 100))
+    print("BEFORE DT RFE Test w/bin score 3*std: +/- {:.2f}".format(base_results['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    # feature selection
+    dtree_rfe = feature_selection.RFECV(dtree, step=1, scoring='accuracy', cv=cv_split, n_jobs=-1)
+    dtree_rfe.fit(data1[data1_x_bin], data1[Target])
+
+    # transform x&y to reduced features and fit new model
+    # alternative: can use pipeline to reduce fit and transform steps: http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html
+    X_rfe = data1[data1_x_bin].columns.values[dtree_rfe.get_support()].tolist() # Get a mask, or integer index, of the features selected
+    rfe_results = model_selection.cross_validate(dtree, data1[X_rfe], data1[Target], cv=cv_split, return_train_score=True)
+
+    # print(dtree_rfe.grid_scores_)
+    print('AFTER DT RFE Training Shape New: ', data1[X_rfe].shape)
+    print('AFTER DT RFE Training Columns New: ', X_rfe)
+
+    print("AFTER DT RFE Training w/bin score mean: {:.2f}".format(rfe_results['train_score'].mean() * 100))
+    print("AFTER DT RFE Test w/bin score mean: {:.2f}".format(rfe_results['test_score'].mean() * 100))
+    print("AFTER DT RFE Test w/bin score 3*std: +/- {:.2f}".format(rfe_results['test_score'].std() * 100 * 3))
+    print('-' * 10)
+    return dtree_rfe, X_rfe, rfe_results
+
+def multi_classifier_voting_predication(data1, data1_x_bin, cv_split, Target):
+    # why choose one model, when you can pick them all with voting classifier
+    # http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.VotingClassifier.html
+    # removed models w/o attribute 'predict_proba' required for vote classifier and models with a 1.0 correlation to another model
+    vote_est = [
+        # Ensemble Methods: http://scikit-learn.org/stable/modules/ensemble.html
+        ('ada', ensemble.AdaBoostClassifier()),
+        ('bc', ensemble.BaggingClassifier()),
+        ('etc', ensemble.ExtraTreesClassifier()),
+        ('gbc', ensemble.GradientBoostingClassifier()),
+        ('rfc', ensemble.RandomForestClassifier()),
+        # Gaussian Processes: http://scikit-learn.org/stable/modules/gaussian_process.html#gaussian-process-classification-gpc
+        ('gpc', gaussian_process.GaussianProcessClassifier()),
+
+        # GLM: http://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
+        ('lr', linear_model.LogisticRegressionCV()),
+
+        # Navies Bayes: http://scikit-learn.org/stable/modules/naive_bayes.html
+        ('bnb', naive_bayes.BernoulliNB()),
+        ('gnb', naive_bayes.GaussianNB()),
+
+        # Nearest Neighbor: http://scikit-learn.org/stable/modules/neighbors.html
+        ('knn', neighbors.KNeighborsClassifier()),
+
+        # SVM: http://scikit-learn.org/stable/modules/svm.html
+        ('svc', svm.SVC(probability=True)),
+
+        # xgboost: http://xgboost.readthedocs.io/en/latest/model.html
+        ('xgb', XGBClassifier())
+
+    ]
+    # Hard Vote or majority rules
+    vote_hard = ensemble.VotingClassifier(estimators=vote_est, voting='hard')
+    vote_hard_cv = model_selection.cross_validate(vote_hard, data1[data1_x_bin], data1[Target], cv=cv_split, return_train_score=True)
+    vote_hard.fit(data1[data1_x_bin], data1[Target])
+
+    print("Hard Voting Training w/bin score mean: {:.2f}".format(vote_hard_cv['train_score'].mean() * 100))
+    print("Hard Voting Test w/bin score mean: {:.2f}".format(vote_hard_cv['test_score'].mean() * 100))
+    print("Hard Voting Test w/bin score 3*std: +/- {:.2f}".format(vote_hard_cv['test_score'].std() * 100 * 3))
+    print('-' * 10)
+
+    # Soft Vote or weighted probabilities
+    vote_soft = ensemble.VotingClassifier(estimators=vote_est, voting='soft')
+    vote_soft_cv = model_selection.cross_validate(vote_soft, data1[data1_x_bin], data1[Target], cv=cv_split,
+                                                  return_train_score=True)
+    vote_soft.fit(data1[data1_x_bin], data1[Target])
+
+    print("Soft Voting Training w/bin score mean: {:.2f}".format(vote_soft_cv['train_score'].mean() * 100))
+    print("Soft Voting Test w/bin score mean: {:.2f}".format(vote_soft_cv['test_score'].mean() * 100))
+    print("Soft Voting Test w/bin score 3*std: +/- {:.2f}".format(vote_soft_cv['test_score'].std() * 100 * 3))
+    print('-' * 10)
+    return vote_hard, vote_soft
+
+def draw_tree(my_tree, feature_names, out='output/dtree_render'):
+    # Graph MLA version of Decision Tree: http://scikit-learn.org/stable/modules/generated/sklearn.tree.export_graphviz.html
+    import graphviz
+    dot_data = tree.export_graphviz(my_tree, out_file=None, feature_names=feature_names, class_names=True, filled=True, rounded=True)
+    graph = graphviz.Source(dot_data)
+    graph.format = 'png'
+    graph.render(out, view=True)
 
 def Model():
     data_raw = pd.read_csv('./input/train.csv')
@@ -384,12 +524,12 @@ def Model():
 
     cv_split = cross_validation_split_2()
 
-    MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val = multi_classifier_model(data1, Target, data_val, MLA, data1_x_bin, cv_split)
+    MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val = multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv_split)
 
     del MLA_predict_on_data_val['Survived']
     MLA_predict_on_data_val['predict'] = round(MLA_predict_on_data_val.mean(axis=1)).astype(int)
 
-    # submission(data_val['PassengerId'], MLA_predict_on_data_val['predict'], './output/achieve_99_models.csv')
+    # submission(data_val['PassengerId'], MLA_predict_on_data_val['predict'], './output/achieve_99_models.csv') # 0.77511
     # classifier_accuracy_compare(MLA_compare)
 
     flip_a_coin(data1)
@@ -397,11 +537,35 @@ def Model():
     # model data
     Tree_Predict = mytree(data1)
     print('Decision Tree Model Accuracy/Precision Score: {:.2f}%\n'.format(metrics.accuracy_score(data1['Survived'], Tree_Predict) * 100)) # Accuracy classification score
-    # Accuracy Summary Report with http://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html#sklearn.metrics.classification_report
-    # Where recall score = (true positives)/(true positive + false negative) w/1 being best:http://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html#sklearn.metrics.recall_score
-    # And F1 score = weighted average of precision and recall w/1 being best: http://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
-    # print(metrics.classification_report(data1['Survived'], Tree_Predict)) # Build a text report showing the main classification metrics
+    Tree_Predict_submit = mytree(data_val).astype(int)
+    # submission(data_val['PassengerId'], Tree_Predict_submit['Predict'], './output/achieve_99_mytree.csv') # 0.77990
 
+    # support is the number of samples of the true response that lie in that class.
+    # macro average (averaging the unweighted mean per label)
+    print(metrics.classification_report(data1['Survived'], Tree_Predict)) # Build a text report showing the main classification metrics
+
+    # hyper-param tuning
+    dtree, base_results = decisionTree_no_hyperparam_tune(data1, data1_x_bin, Target, cv_split)
+    y_pred_dtree = dtree.predict(data_val[data1_x_bin]).astype(int)
+    # submission(data_val['PassengerId'], y_pred_dtree, './output/achieve_99_dtree.csv') # 0.76555
+
+    tune_model, param_grid = decisionTree_with_hyperparam_tune(data1, data1_x_bin, Target, cv_split)
+    y_pred_tune_model = tune_model.predict(data_val[data1_x_bin]).astype(int)
+    submission(data_val['PassengerId'], y_pred_tune_model, './output/achieve_99_tune_model.csv')
+
+    # feature selection
+    dtree_rfe, X_rfe, rfe_results = feature_select(data1, data1_x_bin, dtree, base_results, cv_split, Target)
+    y_pred_dtree_rfe = dtree_rfe.predict(data_val[data1_x_bin]).astype(int)
+    submission(data_val['PassengerId'], y_pred_dtree_rfe, './output/achieve_99_dtree_rfe.csv')
+
+    # draw_tree(dtree, data1_x_bin, out='output/dtree')
+
+    vote_hard, vote_soft = multi_classifier_voting_predication(data1, data1_x_bin, cv_split, Target)
+    y_pred_vote_hard = vote_hard.predict(data_val[data1_x_bin]).astype(int)
+    submission(data_val['PassengerId'], y_pred_vote_hard, './output/achieve_99_vote_hard.csv')
+
+    y_pred_vote_soft = vote_soft.predict(data_val[data1_x_bin]).astype(int)
+    submission(data_val['PassengerId'], y_pred_vote_soft, './output/achieve_99_vote_soft.csv')
 
 if __name__== "__main__":
     Model()
