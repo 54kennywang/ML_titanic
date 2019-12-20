@@ -4,21 +4,26 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-# solution = os.path.join(dirname, './input/train.csv')
-# submission = os.path.join(dirname, './input/test.csv')
-# solution = pd.read_csv(solution)
-# submission = pd.read_csv(submission)
+def mark(pred):
+    solution = os.path.join(dirname, './output/solution.csv')
+    submission = os.path.join(dirname, './output/'+pred)
+    solution = pd.read_csv(solution)
+    submission = pd.read_csv(submission)
 
-a = [['10', '1.2', '4.2'], ['15', '70', '0.03'], ['8', '5', '0']]
-df1 = pd.DataFrame(a, columns=['one', 'two', 'three'])
+    solution.columns = ['PassengerId', 'Sol']
+    submission.columns = ['PassengerId', 'Pred']
 
-b = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']]
-df2 = pd.DataFrame(b, columns=['a', 'b', 'c'])
+    df = pd.concat([solution[['Sol']], submission[['Pred']]], axis=1)
+    num_row = df.shape[0]
+    print(pred[:-4], '==', (df[(df['Sol'] == df['Pred'])]).shape[0] / num_row)
 
-df = pd.concat([a[['one']], b[['a']]], axis=1)
-print(df)
-
-
-
-
-
+if __name__== "__main__":
+    mark('achieve_99_models.csv')
+    mark('achieve_99_mytree.csv')
+    mark('achieve_99_dtree.csv')
+    mark('achieve_99_tune_model.csv')
+    mark('achieve_99_dtree_rfe.csv')
+    mark('achieve_99_vote_hard.csv')
+    mark('achieve_99_vote_soft.csv')
+    mark('advanced_feature_with_stacking_5_fold.csv')
+    mark('advanced_feature_with_stacking.csv')
