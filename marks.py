@@ -27,3 +27,4 @@ if __name__== "__main__":
     mark('achieve_99_vote_soft.csv')
     mark('advanced_feature_with_stacking_5_fold.csv')
     mark('advanced_feature_with_stacking.csv')
+    # mark('GA.csv')
