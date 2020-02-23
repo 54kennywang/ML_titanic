@@ -110,7 +110,7 @@ def add_name_length(combine):
     return combine
 
 # categorize title to Miss/Mrs/Rare/Master/Mr
-def caregorize_title(combine):
+def categorize_title(combine):
     for dataset in combine:
         dataset['Title'] = dataset['Title'].replace(['Col', 'Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona', 'Don'], 'Rare')
         dataset['Title'] = dataset['Title'].replace('Mlle', 'Miss')
@@ -236,6 +236,7 @@ def Pearson_Correlation_of_Features(train_df):
     sns.heatmap(train_df.astype(float).corr(), linewidths=0.1, vmax=1.0,
                 square=True, cmap=colormap, linecolor='white', annot=True)
     plt.show()
+
 def feature_importance(cls, X_train, Y_train):
     importance = (cls.fit(X_train, Y_train).feature_importances_).tolist()
     titles = X_train.columns.values.tolist()
@@ -268,7 +269,7 @@ def Model(train_input, test_input):
     add_title_col(combine)
 
     # convert Title to ordinal
-    caregorize_title(combine)
+    categorize_title(combine)
     categorical_to_ordinal(combine, title_mapping, 'Title')
 
     # add nameLen col
