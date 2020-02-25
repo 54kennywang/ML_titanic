@@ -1,18 +1,19 @@
 # https://www.kaggle.com/arthurtok/introduction-to-ensembling-stacking-in-python/notebook
 
 """
-stacking: we have x_train -> y_train, we want to predict x_test -> ?
-normally, we train a stack m1 by (x_train, y_train), then we use m1 to do x_test -> y_test, y_test is our final predication --- (1)
-here, in (1), when m1 is being trained, we use oof to get y_train_oof on x_train, and ofc we still get y_test
-in second stack m2, we train m2 by (y_train_oof, y_train), then we use m2 to do y_test -> final_predication on x_test
+stacking: we have (x_train, y_train), we want to predict (x_test, ?)
+normally, we train a stack m1 by (x_train, y_train), then we use m1 to do x_test -> ? --- (1)
+here, in (1), when m1 is being trained, we use oof (see below) to get y_train_oof predicting on x_train, and y_test predicting on x_test
+in second stack m2, we train m2 by (y_train_oof, y_train), then we use m2 to do y_test -> ?
 
 oof: when train a model m by (x, y), instead of using all x at once to get loss by y, we divide x to (x1, x2, x3) (assume 3 fold)
-     x1, x2, x3 are disjoint and x1 + x2 + x3 = x
-     1) we train m by ((x1, x2), (y1, y2)) and we predict y3_oof on x3 and y_test_1 on y
-     2) we train m by ((x2, x3), (y2, y3)) and we predict y1_oof on x1 and y_test_2 on y
-     3) we train m by ((x1, x3), (y1, y3)) and we predict y2_oof on x2 and y_test_3 on y
-     finally, y1_oof + y2_oof + y3_oof = y_train_oof, average (y_test_1, y_test_2, y_test_3) to be y_test
-     so now, for layer 2, we have (y_train_oof, y) to train m2, then use m2 to predict (y_test, final_predication)
+     x1, x2, x3 are disjoint and x1 + x2 + x3 = x (correspondingly y = y1 + y2 + y3)
+     we want to predict on (p, ?)
+     1) we train m11 by (x1+x2, y1+y2) and we get y3_oof predicting on x3 and get y_test_1 predicting on p using m11
+     2) we train m12 by (x2+x3, y2+y3) and we get y1_oof predicting on x1 and get y_test_2 predicting on p using m12
+     3) we train m13 by (x1+x3, y1+y3) and we get y2_oof predicting on x2 and get y_test_3 predicting on p using m13
+     y1_oof + y2_oof + y3_oof = y_train_oof (m1 prediction on x), average (y_test_1, y_test_2, y_test_3) to be y_test (m1 prediction on p)
+     so now, for layer 2, we train m2 on (y_train_oof, y), then use m2 to predict (y_test, ?)
 """
 
 # Load in our libraries
@@ -35,8 +36,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Going to use these 5 base models for the stacking
-from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier,
-                              GradientBoostingClassifier, ExtraTreesClassifier)
+from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier)
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
@@ -119,49 +119,53 @@ def get_title(name):
 def fist_layer_feature_engineering(train, test):
     # Store our passenger ID for easy access
     PassengerId = test['PassengerId']
-    full_data = [train, test]
+    combine = [train, test]
 
     # Gives the length of the name
     train['Name_length'] = train['Name'].apply(len)
     test['Name_length'] = test['Name'].apply(len)
 
     # Feature that tells whether a passenger had a cabin on the Titanic
+    # empty is float so 0 means no cabin; 1 means have cabin
     train['Has_Cabin'] = train["Cabin"].apply(lambda x: 0 if type(x) == float else 1)
     test['Has_Cabin'] = test["Cabin"].apply(lambda x: 0 if type(x) == float else 1)
 
     # Create new feature FamilySize as a combination of SibSp and Parch
-    for dataset in full_data:
+    for dataset in combine:
         dataset['FamilySize'] = dataset['SibSp'] + dataset['Parch'] + 1
 
     # Create new feature IsAlone from FamilySize
-    for dataset in full_data:
+    for dataset in combine:
         dataset['IsAlone'] = 0
         dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
 
-    # Remove all NULLS in the Embarked column
-    for dataset in full_data:
+    # Fill all NULLS in the Embarked column
+    for dataset in combine:
         dataset['Embarked'] = dataset['Embarked'].fillna('S')
 
-    # Remove all NULLS in the Fare column and create a new feature CategoricalFare
-    for dataset in full_data:
+    # Fill all NULLS in the Fare column
+    for dataset in combine:
         dataset['Fare'] = dataset['Fare'].fillna(train['Fare'].median())
     train['CategoricalFare'] = pd.qcut(train['Fare'], 4)
 
-    # Create a New feature CategoricalAge
-    for dataset in full_data:
+    # Fill all NULLS in the Age column
+    for dataset in combine:
         age_avg = dataset['Age'].mean()
         age_std = dataset['Age'].std()
         age_null_count = dataset['Age'].isnull().sum()
         age_null_random_list = np.random.randint(age_avg - age_std, age_avg + age_std, size=age_null_count)
         dataset['Age'][np.isnan(dataset['Age'])] = age_null_random_list
         dataset['Age'] = dataset['Age'].astype(int)
+
+    # Create a New feature CategoricalAge
     train['CategoricalAge'] = pd.cut(train['Age'], 5)
 
     # Create a new feature Title, containing the titles of passenger names
-    for dataset in full_data:
+    for dataset in combine:
         dataset['Title'] = dataset['Name'].apply(get_title)
+
     # Group all non-common titles into one single grouping "Rare"
-    for dataset in full_data:
+    for dataset in combine:
         dataset['Title'] = dataset['Title'].replace(
             ['Lady', 'Countess', 'Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona'], 'Rare')
 
@@ -169,7 +173,8 @@ def fist_layer_feature_engineering(train, test):
         dataset['Title'] = dataset['Title'].replace('Ms', 'Miss')
         dataset['Title'] = dataset['Title'].replace('Mme', 'Mrs')
 
-    for dataset in full_data:
+    # categorical to ordinal conversion
+    for dataset in combine:
         # Mapping Sex
         dataset['Sex'] = dataset['Sex'].map({'female': 0, 'male': 1}).astype(int)
 
@@ -232,7 +237,8 @@ class SklearnHelper(object):
         return self.clf.score(x, y)
 
 # Out-of-Fold Predictions
-# one cannot simply train the base models on the full training data, generate predictions on the full test set and then output these for the second-level training. This runs the risk of your base model predictions already having "seen" the test set and therefore overfitting when feeding these predictions.
+# one cannot simply train the base models on the full training data, generate predictions on the full test set and then output these for the second-level training.
+# This runs the risk of your base model predictions already having "seen" the test set and therefore overfitting when feeding these predictions.
 # clf is the model
 # x_train, y_train, x_test are the outputs from fist_layer_feature_engineering
 # return prediction on x_train, average predication on x_test
@@ -273,6 +279,7 @@ def create_first_layer_models_2():
     gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
     lg = SklearnHelper(clf=LogisticRegression, seed=SEED, params=dt_params)
     return [rf, et, ada, gb, lg]
+
 # train first layer model with feature-engineered data
 # return oof_train: the tuple of train predictions for all models using oof
 # return oof_test: the tuple of test predictions for all models using oof
