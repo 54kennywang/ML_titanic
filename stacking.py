@@ -9,11 +9,16 @@ in second stack m2, we train m2 by (y_train_oof, y_train), then we use m2 to do 
 oof: when train a model m by (x, y), instead of using all x at once to get loss by y, we divide x to (x1, x2, x3) (assume 3 fold)
      x1, x2, x3 are disjoint and x1 + x2 + x3 = x (correspondingly y = y1 + y2 + y3)
      we want to predict on (p, ?)
-     1) we train m11 by (x1+x2, y1+y2) and we get y3_oof predicting on x3 and get y_test_1 predicting on p using m11
-     2) we train m12 by (x2+x3, y2+y3) and we get y1_oof predicting on x1 and get y_test_2 predicting on p using m12
-     3) we train m13 by (x1+x3, y1+y3) and we get y2_oof predicting on x2 and get y_test_3 predicting on p using m13
+     1) we train m11 by (x1+x2, y1+y2), then use m11 to get y3_oof predicting on x3 and get y_test_1 predicting on p using m11
+     2) we train m12 by (x2+x3, y2+y3), then use m12 to get y1_oof predicting on x1 and get y_test_2 predicting on p using m12
+     3) we train m13 by (x1+x3, y1+y3), then use m13 to get y2_oof predicting on x2 and get y_test_3 predicting on p using m13
      y1_oof + y2_oof + y3_oof = y_train_oof (m1 prediction on x), average (y_test_1, y_test_2, y_test_3) to be y_test (m1 prediction on p)
      so now, for layer 2, we train m2 on (y_train_oof, y), then use m2 to predict (y_test, ?)
+
+model:
+    1. feature engineering to manipulate data => (x_train, y_train, x_test)
+    2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
+    3. second stack: make final predication with a model by passing in concatenated (oof_train, oof_test) => predictions
 """
 
 # Load in our libraries
@@ -245,7 +250,7 @@ class SklearnHelper(object):
 def get_oof(clf, x_train, y_train, x_test):
     oof_train = np.zeros((ntrain,)) # prediction on x_train
     oof_test = np.zeros((ntest,)) # average of 5 times of predication on x_test
-    oof_test_skf = np.empty((NFOLDS, ntest)) # each row is the predication for x_test
+    oof_test_skf = np.empty((NFOLDS, ntest)) # each row is a predication for x_test, in the end we average out 5 rows
 
     for i, (train_index, test_index) in enumerate(kf.split(x_train)): # i is the time of looping 0-4
         x_tr = x_train[train_index] # train subset
@@ -253,9 +258,9 @@ def get_oof(clf, x_train, y_train, x_test):
         x_te = x_train[test_index] # remaining train subset as test
 
         clf.train(x_tr, y_tr) # train on k-1 folds of train
-        oof_train[test_index] = clf.predict(x_te) # predict on last fold of train
+        oof_train[test_index] = clf.predict(x_te) # predict on last fold of train, each iteration fills 1/5 of the array
 
-        oof_test_skf[i, :] = clf.predict(x_test) # single time prediction on test
+        oof_test_skf[i, :] = clf.predict(x_test) # single time prediction on test, each iteration fills a row
 
     oof_test[:] = oof_test_skf.mean(axis=0) # average of 5 times of predication
 
@@ -270,6 +275,41 @@ def create_first_layer_models():
     gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
     svc = SklearnHelper(clf=SVC, seed=SEED, params=svc_params)
     return [rf, et, ada, gb, svc]
+
+# train first layer model with feature-engineered data
+# return oof_train: the tuple of train predictions for all models using oof
+# return oof_test: the tuple of test predictions for all models using oof
+def fist_layer_training(models, x_train, y_train, x_test):
+    rf, et, ada, gb, svc = models
+    et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
+    rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
+    ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
+    gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
+    svc_oof_train, svc_oof_test = get_oof(svc, x_train, y_train, x_test)  # Support Vector Classifier
+    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, svc_oof_train)
+    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, svc_oof_test)
+
+    rf.fit(x_train, y_train)
+    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
+    print("rf", acc_rf)
+
+    et.fit(x_train, y_train)
+    acc_et = round(et.score(x_train, y_train) * 100, 2)
+    print("et", acc_et)
+
+    ada.fit(x_train, y_train)
+    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
+    print("ada", acc_ada)
+
+    gb.fit(x_train, y_train)
+    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
+    print("gb", acc_gb)
+
+    svc.fit(x_train, y_train)
+    acc_svc = round(svc.score(x_train, y_train) * 100, 2)
+    print("svc", acc_svc)
+
+    return oof_train, oof_test
 
 # borrow best models from feature_engineering.py: DecisionTreeClassifier
 def create_first_layer_models_2():
@@ -312,42 +352,6 @@ def fist_layer_training_2(models, x_train, y_train, x_test):
     lg.fit(x_train, y_train)
     acc_lg = round(lg.score(x_train, y_train) * 100, 2)
     print("lg", acc_lg)
-
-    return oof_train, oof_test
-
-
-# train first layer model with feature-engineered data
-# return oof_train: the tuple of train predictions for all models using oof
-# return oof_test: the tuple of test predictions for all models using oof
-def fist_layer_training(models, x_train, y_train, x_test):
-    rf, et, ada, gb, svc = models
-    et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
-    rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
-    ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
-    gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
-    svc_oof_train, svc_oof_test = get_oof(svc, x_train, y_train, x_test)  # Support Vector Classifier
-    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, svc_oof_train)
-    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, svc_oof_test)
-
-    rf.fit(x_train, y_train)
-    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
-    print("rf", acc_rf)
-
-    et.fit(x_train, y_train)
-    acc_et = round(et.score(x_train, y_train) * 100, 2)
-    print("et", acc_et)
-
-    ada.fit(x_train, y_train)
-    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
-    print("ada", acc_ada)
-
-    gb.fit(x_train, y_train)
-    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
-    print("gb", acc_gb)
-
-    svc.fit(x_train, y_train)
-    acc_svc = round(svc.score(x_train, y_train) * 100, 2)
-    print("svc", acc_svc)
 
     return oof_train, oof_test
 
@@ -414,6 +418,12 @@ def feature_importance(x_train, y_train, models, tr):
     df.to_csv('feature_importance.csv')
 
 def Model(train, test):
+    '''
+    1. feature engineering to manipulate data => (x_train, y_train, x_test)
+    2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
+    3. second stack: make final predication with a model by passing in concatenated (oof_train, oof_test) => predictions
+    '''
+
     # feature engineer the first stack
     # x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
     x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
