@@ -1,7 +1,7 @@
-import string, random
-def randomString(stringLength=10):
-    """Generate a random string of fixed length """
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(stringLength))
+import string, random, numpy as np, pandas as pd
 
-print(randomString())
+a = pd.array([1, 2, 3])
+b = pd.array([4, 5, 6])
+print(a)
+print(b)
+print(pd.concat([a, b], sort=True).reset_index(drop=True))
