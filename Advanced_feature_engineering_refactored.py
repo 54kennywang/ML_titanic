@@ -75,7 +75,7 @@ def fill_missing_age(dfs):
     print('===fill missing age===')
     df_all = concat_df(dfs[0], dfs[1])
     df_all['Age'] = df_all.groupby(['SibSp', 'Pclass'])['Age'].apply(lambda x: x.fillna(x.median()))
-    return df_all
+    return divide_df(df_all)
 
 # Both of those passengers are female, upper class and same ticket number. This means, they know each other and embarked from the same port together.
 # When I googled Stone, Mrs. George Nelson (Martha Evelyn), I found that she embarked from S (Southampton) with her maid Amelie Icard,
@@ -86,7 +86,7 @@ def fill_missing_embarked(dfs):
     print('===fill missing embarked===')
     df_all = concat_df(dfs[0], dfs[1])
     df_all['Embarked'] = df_all['Embarked'].fillna(embarked_mapping['S'])
-    return df_all
+    return divide_df(df_all)
 
 def fill_missing_fare(dfs):
     print('===fill missing fare===')
@@ -94,13 +94,13 @@ def fill_missing_fare(dfs):
     median_fare = df_all.loc[
         (df_all['Pclass'] == 3) & (df_all['Parch'] == 0) & (df_all['Sex'] == 0) & (df_all['SibSp'] == 0)].Fare.median()
     df_all['Fare'] = df_all['Fare'].fillna(median_fare)
-    return df_all
+    return divide_df(df_all)
 
 def create_deck(dfs):
     print('===create deck col===')
     df_all = concat_df(dfs[0], dfs[1])
     df_all['Deck'] = df_all['Cabin'].apply(lambda carbin: carbin[0] if pd.notnull(carbin) else 'M')
-    return df_all
+    return divide_df(df_all)
 
 def drop_col(df, col_arr, axis=1):
     print('=== Drop useless cols: ' + '/'.join(col_arr) + ' ===')
@@ -174,88 +174,86 @@ def add_name_length(dfs):
         dataset['nameLen'] = dataset['Name'].apply(len)
     return dfs
 
+def deck_T_to_A(dfs):
+    df_all = concat_df(dfs[0], dfs[1])
+    idx = df_all[df_all['Deck'] == 'T'].index
+    df_all.loc[idx, 'Deck'] = 'A'
+    # print(df_all.loc[[339]])  # confirm this row is changed to Deck = 'A'
+    return divide_df(df_all)
+
 def advanced_feature_engineer(df_train, df_test):
     dfs = [df_train, df_test]
     df_all = concat_df(df_train, df_test)
 
     display_missingness(dfs)
 
-    dfs = categorical_to_ordinal(dfs, sex_mapping, 'Sex')
-    dfs = categorical_to_ordinal(dfs, embarked_mapping, 'Embarked')
+    categorical_to_ordinal(dfs, sex_mapping, 'Sex')
+    categorical_to_ordinal(dfs, embarked_mapping, 'Embarked')
     df_all = concat_df(df_train, df_test)
     # print(df_train.shape)
     # print(df_test.shape)
     # print(df_all)
 
     correlation(dfs, 'Age', True)  # => Median age of Pclass groups is the best choice because of its high correlation with Age
-    df_all = fill_missing_age(dfs)
-    df_train, df_test = divide_df(df_all)
+    df_train, df_test = fill_missing_age(dfs)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Embarked null in df_train===")
     print(df_all[df_all['Embarked'].isnull()])
     correlation(dfs, 'Embarked', True)  # => this does not give much info about which col is closely related to 'Embarked'
-    df_all = fill_missing_embarked(dfs)
-    df_train, df_test = divide_df(df_all)
+    df_train, df_test = fill_missing_embarked(dfs)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Fare null in df_test===")
     print(df_all[df_all['Fare'].isnull()])
     correlation(dfs, 'Fare', True)  # => highly associated with 'Pclass', 'Parch', 'SibSp', 'Sex'
-    df_all = fill_missing_fare(dfs)
-    df_train, df_test = divide_df(df_all)
+    df_train, df_test = fill_missing_fare(dfs)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
-    df_all = create_deck(dfs)
-    print(df_all.iloc[:1])
+    df_train, df_test = create_deck(dfs)
+    dfs = [df_train, df_test]
+    print(concat_df(df_train, df_test).iloc[:1])
     # There is only one person on the boat deck in the T cabin and he is a 1st class passenger.
     # T cabin passenger has the closest resemblance to A deck passengers, so he is grouped in A deck.
-    idx = df_all[df_all['Deck'] == 'T'].index
-    df_all.loc[idx, 'Deck'] = 'A'
-    # print(df_all.loc[[339]])  # confirm this row is changed to Deck = 'A'
-    df_train, df_test = divide_df(df_all)
+    df_train, df_test = deck_T_to_A(dfs)
     dfs = [df_train, df_test]
     # print(df_train.head(3))
 
-    dfs = categorical_to_ordinal(dfs, deck_mapping, 'Deck')
-    df_all = concat_df(df_train, df_test)
-    print(df_all.iloc[:1])
+    categorical_to_ordinal(dfs, deck_mapping, 'Deck')
+    print(df_train.iloc[:1])
     # print(df_train.head(3))
 
-    dfs = add_title_col(dfs)
-    df_all = concat_df(df_train, df_test)
-    print(df_all.iloc[:1])
+    add_title_col(dfs)
+    print(df_train.iloc[:1])
     # print(df_train.head(3))
 
-    dfs = caregorize_title(dfs)
-    df_all = concat_df(df_train, df_test)
-    print(df_all.iloc[:1])
+    caregorize_title(dfs)
+    print(df_train.iloc[:1])
     # print(df_train.head(3))
 
-    dfs = categorical_to_ordinal(dfs, title_mapping, 'Title')
-    df_all = concat_df(df_train, df_test)
-    print(df_all.iloc[:1])
+    categorical_to_ordinal(dfs, title_mapping, 'Title')
+    print(df_train.iloc[:1])
     # print(df_train.head(3))
 
-    dfs = create_FamilySize(dfs)
+    create_FamilySize(dfs)
     print(df_train.head(1))
 
-    dfs = create_ticketFreq(dfs)
+    create_ticketFreq(dfs)
     print(df_train.head(1))
 
-    dfs = create_IsAlone(dfs)
+    create_IsAlone(dfs)
     print(df_train.head(1))
 
-    dfs = convert_age_to_ordinal_based_on_bins(dfs)
+    convert_age_to_ordinal_based_on_bins(dfs)
     print(df_train.head(1))
 
-    dfs = convert_fare_to_ordinal_based_on_bins(dfs)
+    convert_fare_to_ordinal_based_on_bins(dfs)
     print(df_train.head(1))
 
-    dfs = add_name_length(dfs)
+    add_name_length(dfs)
     print(df_train.head(1))
 
     df_train = drop_col(df_train, ['Cabin', 'Name', 'Ticket'])
