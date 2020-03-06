@@ -58,20 +58,22 @@ def divide_df(all_data):
 
 # find absolute value of correlation between given col and the rest of columns, missing values are ignored, only for numerical
 # suitable for finding correlation in order to decide how to fill in missing-ness
-# important to use stacked tran and test data because together they give a better correlation
-def correlation(df, col, abs):
+# important to use stacked train and test data because together they give a better correlation
+def correlation(dfs, col, abs):
     print('===correlation with '+col+'===')
+    df_all = concat_df(dfs[0], dfs[1])
     # df.coor(): Compute pairwise correlation of columns, excluding NA/null values.
     if (abs == True):
-        df_all_corr = df.corr().abs().unstack().sort_values(kind="quicksort", ascending=False).reset_index()
+        df_all_corr = df_all.corr().abs().unstack().sort_values(kind="quicksort", ascending=False).reset_index()
     else:
-        df_all_corr = df.corr().unstack().sort_values(kind="quicksort", ascending=False).reset_index()
+        df_all_corr = df_all.corr().unstack().sort_values(kind="quicksort", ascending=False).reset_index()
     df_all_corr.rename(columns={"level_0": "Feature 1", "level_1": "Feature 2", 0: 'Correlation Coefficient'}, inplace=True)
     print(df_all_corr[df_all_corr['Feature 1'] == col])
     print('===================\n')
 
-def fill_missing_age(df_all):
+def fill_missing_age(dfs):
     print('===fill missing age===')
+    df_all = concat_df(dfs[0], dfs[1])
     df_all['Age'] = df_all.groupby(['SibSp', 'Pclass'])['Age'].apply(lambda x: x.fillna(x.median()))
     return df_all
 
@@ -80,20 +82,23 @@ def fill_missing_age(df_all):
 # in this page Martha Evelyn Stone: Titanic Survivor. Mrs Stone boarded the Titanic in Southampton on 10 April 1912 and was travelling in first class with her maid Amelie Icard.
 # She occupied cabin B-28. This is the information needed and case closed for Embarked feature.
 # Filling the missing values in Embarked with S
-def fill_missing_embarked(df_all):
+def fill_missing_embarked(dfs):
     print('===fill missing embarked===')
+    df_all = concat_df(dfs[0], dfs[1])
     df_all['Embarked'] = df_all['Embarked'].fillna(embarked_mapping['S'])
     return df_all
 
-def fill_missing_fare(df_all):
+def fill_missing_fare(dfs):
     print('===fill missing fare===')
+    df_all = concat_df(dfs[0], dfs[1])
     median_fare = df_all.loc[
         (df_all['Pclass'] == 3) & (df_all['Parch'] == 0) & (df_all['Sex'] == 0) & (df_all['SibSp'] == 0)].Fare.median()
     df_all['Fare'] = df_all['Fare'].fillna(median_fare)
     return df_all
 
-def create_deck(df_all):
+def create_deck(dfs):
     print('===create deck col===')
+    df_all = concat_df(dfs[0], dfs[1])
     df_all['Deck'] = df_all['Cabin'].apply(lambda carbin: carbin[0] if pd.notnull(carbin) else 'M')
     return df_all
 
@@ -182,29 +187,29 @@ def advanced_feature_engineer(df_train, df_test):
     # print(df_test.shape)
     # print(df_all)
 
-    correlation(df_all, 'Age', True)  # => Median age of Pclass groups is the best choice because of its high correlation with Age
-    df_all = fill_missing_age(df_all)
+    correlation(dfs, 'Age', True)  # => Median age of Pclass groups is the best choice because of its high correlation with Age
+    df_all = fill_missing_age(dfs)
     df_train, df_test = divide_df(df_all)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Embarked null in df_train===")
     print(df_all[df_all['Embarked'].isnull()])
-    correlation(df_all, 'Embarked', True)  # => this does not give much info about which col is closely related to 'Embarked'
-    df_all = fill_missing_embarked(df_all)
+    correlation(dfs, 'Embarked', True)  # => this does not give much info about which col is closely related to 'Embarked'
+    df_all = fill_missing_embarked(dfs)
     df_train, df_test = divide_df(df_all)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Fare null in df_test===")
     print(df_all[df_all['Fare'].isnull()])
-    correlation(df_all, 'Fare', True)  # => highly associated with 'Pclass', 'Parch', 'SibSp', 'Sex'
-    df_all = fill_missing_fare(df_all)
+    correlation(dfs, 'Fare', True)  # => highly associated with 'Pclass', 'Parch', 'SibSp', 'Sex'
+    df_all = fill_missing_fare(dfs)
     df_train, df_test = divide_df(df_all)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
-    df_all = create_deck(df_all)
+    df_all = create_deck(dfs)
     print(df_all.iloc[:1])
     # There is only one person on the boat deck in the T cabin and he is a 1st class passenger.
     # T cabin passenger has the closest resemblance to A deck passengers, so he is grouped in A deck.

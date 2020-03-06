@@ -56,9 +56,11 @@ def view_data_info(df):
     df.info()
 
 # null percentage of cols in a df
-def get_null_percentage(df):
+def get_null_percentage(combine):
     print('=== Null percentage ===')
-    print(df.isna().sum() / df.shape[0])
+    for dataset in combine:
+        print(dataset.isna().sum() / dataset.shape[0])
+        print('-------------------')
 
 # basic df col stats
 def get_col_stats(df):
@@ -169,12 +171,13 @@ def fill_missing_age2(combine):
     return combine
 
 
-def group_age_into_bins(df):
+def group_age_into_bins(combine):
     # print(train_df.describe()) shows 0.0 <= Age <= 80.0
     print('=== Group age into bins ===')
+    for dataset in combine:
+        dataset['AgeBand'] = pd.cut(dataset['Age'], 5)
     # Use cut when you need to segment and sort data values into bins, here to put age into 5 bins
-    df['AgeBand'] = pd.cut(df['Age'], 5)
-    return df
+    return combine
 
 def convert_age_to_ordinal_based_on_age_bins(combine):
     print('=== convert age to ordinal value based on age bins ===')
@@ -186,17 +189,18 @@ def convert_age_to_ordinal_based_on_age_bins(combine):
         dataset.loc[ dataset['Age'] > 64, 'Age'] = 4
     return combine
 
-def fill_missing_fare(df):
+def fill_missing_fare(combine):
     print('=== Fill in missing fare in test ===')
-    df['Fare'].fillna(df['Fare'].dropna().median(), inplace=True)
-    return df
+    combine[1]['Fare'].fillna(combine[1]['Fare'].dropna().median(), inplace=True)
+    return combine
 
-def group_fare_into_bins(df):
+def group_fare_into_bins(combine):
     print('=== Group fare into bins ===')
+    for dataset in combine:
+        dataset['FareBand'] = pd.cut(dataset['Fare'], 4)
     # print(train_df.describe()) shows 0.0 <= Fare <= 512.329200
     # Use cut when you need to segment and sort data values into bins, here to put fare into 4 bins
-    df['FareBand'] = pd.cut(df['Fare'], 4)
-    return df
+    return combine
 
 def convert_fare_to_ordinal_based_on_fare_bins(combine):
     print('=== convert fare to ordinal value based on fare bins ===')
@@ -208,10 +212,10 @@ def convert_fare_to_ordinal_based_on_fare_bins(combine):
         dataset['Fare'] = dataset['Fare'].astype(int)
     return combine
 
-def fill_missing_embarked(df, combine):
+def fill_missing_embarked(combine):
     print('=== Fill in missing embarked in train ===')
     # only 2 missing Embarked in train_df, simply replace them with the most frequent one
-    freq_port = df.Embarked.dropna().mode()[0]
+    freq_port = combine[0].Embarked.dropna().mode()[0]
     for dataset in combine:
         dataset['Embarked'] = dataset['Embarked'].fillna(freq_port)
     return combine
@@ -259,10 +263,9 @@ def Model(train_input, test_input):
     # view_head_data(train_df, 3)
     # view_head_data(test_df, 3)
     #
-    # get_null_percentage(train_df)
-    # get_null_percentage(test_df)
+    # get_null_percentage(combine)
     #
-    # get_col_stats(train_df)
+    get_col_stats(train_df)
     # get_col_stats(test_df)
 
     # extract and add Title from Name
@@ -287,27 +290,22 @@ def Model(train_input, test_input):
     fill_missing_age2(combine)
 
     # Group age into bins
-    train_df = group_age_into_bins(train_df)
-    test_df = group_age_into_bins(test_df)
-    combine = [train_df, test_df]
+    group_age_into_bins(combine)
 
     # convert age to ordinal based on age bins
     convert_age_to_ordinal_based_on_age_bins(combine)
 
     # Group fare into bins
-    train_df = group_fare_into_bins(train_df)
-    test_df = group_fare_into_bins(test_df)
-    combine = [train_df, test_df]
+    group_fare_into_bins(combine)
 
     # Fill in missing fare
-    test_df = fill_missing_fare(test_df)
-    combine = [train_df, test_df]
+    fill_missing_fare(combine)
 
     # convert fare to ordinal based on fare bins
     convert_fare_to_ordinal_based_on_fare_bins(combine)
 
     # Fill in missing Embarked
-    fill_missing_embarked(train_df, combine)
+    fill_missing_embarked(combine)
 
     # Convert Embarked to ordinal
     categorical_to_ordinal(combine, embarked_mapping, 'Embarked')
@@ -326,8 +324,7 @@ def Model(train_input, test_input):
     # view_head_data(train_df, 3)
     # view_head_data(test_df, 3)
     #
-    # get_null_percentage(train_df)
-    # get_null_percentage(test_df)
+    # get_null_percentage(combine)
     # Pearson_Correlation_of_Features(train_df)
 
     print('=== Model ===')
