@@ -35,9 +35,13 @@ def display_missingness(dfs):
         print('-------')
     print('===================')
 
+# Returns a concatenated/stacked df of training and test set on axis 0 (vertically)
 def concat_df(df_train, df_test):
-    # Returns a concatenated df of training and test set on axis 0
-    return pd.concat([df_train, df_test], sort=True).reset_index(drop=True)
+    result = pd.concat([df_train, df_test], sort=True).reset_index(drop=True)
+    # print(df_train.shape) # (891, 15)
+    # print(df_test.shape) # (418, 14), fill missing column values null
+    # print(result.shape) # (1309, 15)
+    return result
 
 # convert the categorical titles to ordinal
 def categorical_to_ordinal(dfs, mapping, col):
@@ -54,6 +58,7 @@ def divide_df(all_data):
 
 # find absolute value of correlation between given col and the rest of columns, missing values are ignored, only for numerical
 # suitable for finding correlation in order to decide how to fill in missing-ness
+# important to use stacked tran and test data because together they give a better correlation
 def correlation(df, col, abs):
     print('===correlation with '+col+'===')
     # df.coor(): Compute pairwise correlation of columns, excluding NA/null values.
