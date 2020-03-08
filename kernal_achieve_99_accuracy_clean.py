@@ -134,18 +134,18 @@ def define_var(data1):
     data1_x_calc = ['Sex_Code', 'Pclass', 'Embarked_Code', 'Title_Code', 'SibSp', 'Parch', 'Age',
                     'Fare']  # coded for algorithm calculation
     data1_xy = Target + data1_x
-    print('Original X Y: ', data1_xy, '\n')
+    print('Original X Y: ', data1_xy)
 
     # define x variables for original w/bin features to remove continuous variables
     data1_x_bin = ['Sex_Code', 'Pclass', 'Embarked_Code', 'Title_Code', 'FamilySize', 'AgeBin_Code', 'FareBin_Code']
     data1_xy_bin = Target + data1_x_bin
-    print('Bin X Y: ', data1_xy_bin, '\n')
+    print('Bin X Y: ', data1_xy_bin)
 
     # define x and y variables for dummy features original
     data1_dummy = pd.get_dummies(data1[data1_x])  # having one-hot effect for categorical data, keep numeric unchanged
     data1_x_dummy = data1_dummy.columns.tolist()  # col names
     data1_xy_dummy = Target + data1_x_dummy
-    print('Dummy X Y: ', data1_xy_dummy, '\n')
+    print('Dummy X Y: ', data1_xy_dummy)
     return Target, data1_x, data1_x_calc, data1_xy, data1_x_bin, data1_xy_bin, data1_dummy, data1_x_dummy, data1_xy_dummy
 
 def cross_validation_split_1(data1, data1_x_calc, Target, data1_x_bin, data1_dummy, data1_x_dummy):
@@ -181,9 +181,8 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
     MLA_compare = pd.DataFrame(columns=MLA_columns)
 
     # create table to compare MLA predictions
-    MLA_predict = data1[Target]
-    MLA_predict_on_data_val = pd.DataFrame(pd.np.empty((data_val.shape[0], 1)) * 0, columns=['Survived'])
-    # print(MLA_predict_on_test)
+    MLA_predict = data1[Target] # train_y already known
+    MLA_predict_on_data_val = pd.DataFrame(pd.np.empty((data_val.shape[0], 1)) * 0, columns=['Survived']) # test_y to be predicted
 
     # index through MLA and save performance to table
     row_index = 0
@@ -194,15 +193,14 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
         MLA_compare.loc[row_index, 'MLA_Parameters'] = str(alg.get_params())
 
         # score model with cross validation: http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_validate.html#sklearn.model_selection.cross_validate
-        cv_results = model_selection.cross_validate(alg, data1[data1_x_bin], data1[Target], cv=cv_split,
-                                                    return_train_score=True)
+        # data1_x_bin = ['Sex_Code', 'Pclass', 'Embarked_Code', 'Title_Code', 'FamilySize', 'AgeBin_Code', 'FareBin_Code']
+        cv_results = model_selection.cross_validate(alg, data1[data1_x_bin], data1[Target], cv=cv_split, return_train_score=True)
 
         MLA_compare.loc[row_index, 'MLA_Time'] = cv_results['fit_time'].mean()
         MLA_compare.loc[row_index, 'MLA_Train_Accuracy_Mean'] = cv_results['train_score'].mean()
         MLA_compare.loc[row_index, 'MLA_Test_Accuracy_Mean'] = cv_results['test_score'].mean()
         # if this is a non-bias random sample, then +/-3 standard deviations (std) from the mean, should statistically capture 99.7% of the subsets
-        MLA_compare.loc[row_index, 'MLA_Test_Accuracy_3*STD'] = cv_results[
-                                                                    'test_score'].std() * 3  # let's know the worst that can happen!
+        MLA_compare.loc[row_index, 'MLA_Test_Accuracy_3*STD'] = cv_results['test_score'].std() * 3  # let's know the worst that can happen!
 
         # save MLA predictions - see section 6 for usage
         alg.fit(data1[data1_x_bin], data1[Target])
@@ -497,35 +495,45 @@ def Model():
     data1 = data_raw.copy(deep=True)
 
     # however passing by reference is convenient, because we can clean both datasets at once
-    data_cleaner = [data1, data_val]
+    data_cleaner = [data1, data_val] # [train_copy, test]
 
-    # display_missing(data1) # age/carbin/embark
-    # display_missing(data_val) # age/carbin/fare/embark
+    display_missing(data1) # age/carbin/embark
+    display_missing(data_val) # age/carbin/fare/embark
 
-    data_cleaner = fill_in_missingness(data_cleaner)
-    # display_missing(data1) # cabin/
+    data_cleaner = fill_in_missingness(data_cleaner) # age/fare/embark
+    # display_missing(data1) # cabin
     # display_missing(data_val) # cabin
 
     # delete the cabin feature/column and others previously stated to exclude in train dataset
     # drop_column = ['PassengerId', 'Cabin', 'Ticket']
     # data1.drop(drop_column, axis=1, inplace=True)
 
-    data_cleaner = feature_engineering(data_cleaner)
+    data_cleaner = feature_engineering(data_cleaner) # create FamilySize/IsAlone/Title/FareBin/AgeBin
 
-    data1 = name_cleanUp(data1)
+    data1 = name_cleanUp(data1) # create Title
 
+    data_cleaner = [data1, data_val]  # [train_copy, test]
+
+
+    # print('kenny') # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
+    # print(data_cleaner[0].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
+    # print(data_cleaner[1].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
     data_cleaner = categorical_to_ordinal(data_cleaner)
+    # print(data_cleaner[0].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
+    # print(data_cleaner[1].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
+    # print('kenny')
 
+    # only data1_dummy is df, all others are [col names]
     Target, data1_x, data1_x_calc, data1_xy, data1_x_bin, data1_xy_bin, data1_dummy, data1_x_dummy, data1_xy_dummy = define_var(data1)
 
+    # do not understand why we split data here
     train1_x, test1_x, train1_y, test1_y, train1_x_bin, test1_x_bin, train1_y_bin, test1_y_bin, train1_x_dummy, test1_x_dummy, train1_y_dummy, test1_y_dummy = cross_validation_split_1(data1, data1_x_calc, Target, data1_x_bin, data1_dummy, data1_x_dummy)
-
     MLA = all_classifiers()
 
     cv_split = cross_validation_split_2()
 
     MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val = multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv_split)
-
+    '''
     del MLA_predict_on_data_val['Survived']
     MLA_predict_on_data_val['predict'] = round(MLA_predict_on_data_val.mean(axis=1)).astype(int)
 
@@ -566,6 +574,7 @@ def Model():
 
     y_pred_vote_soft = vote_soft.predict(data_val[data1_x_bin]).astype(int)
     submission(data_val['PassengerId'], y_pred_vote_soft, './output/achieve_99_vote_soft.csv')
+        '''
 
 if __name__== "__main__":
     Model()
