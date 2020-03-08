@@ -170,7 +170,7 @@ def cross_validation_split_2():
     # split dataset in cross-validation with this splitter class: http://scikit-learn.org/stable/modules/generated/sklearn.model_selection.ShuffleSplit.html
     # #sklearn.model_selection.ShuffleSplit
     # note: this is an alternative to train_test_split
-    # split training dataset into 0.6:0.3:0.1 subsets and return index of those subset, run model 10x with 60/30 split intentionally leaving out 10%
+    # split training dataset into 0.6:0.3:0.1 subsets and return index of those subset, run model 10 times with 60/30 split intentionally leaving out 10%
     cv_split = model_selection.ShuffleSplit(n_splits=10, test_size=.3, train_size=.6, random_state=0)
     return cv_split
 
@@ -204,8 +204,8 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
 
         # save MLA predictions - see section 6 for usage
         alg.fit(data1[data1_x_bin], data1[Target])
-        MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin])
-        MLA_predict_on_data_val[MLA_name] = alg.predict(data_val[data1_x_bin])
+        MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin]) # record result of each classifier as a col for train_x
+        MLA_predict_on_data_val[MLA_name] = alg.predict(data_val[data1_x_bin]) # record result of each classifier as a col for test_x
 
         row_index += 1
 
@@ -215,6 +215,9 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
     print(MLA_compare)
     print('======MLA_predict=====')
     print(MLA_predict)
+    print('======MLA_predict_on_data_val======')
+    print(MLA_predict_on_data_val)
+    # col_names, diff_model_comparision, predict_on_train_with_fold, predict_on_test
     return MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val
 
 def all_classifiers():
@@ -532,10 +535,10 @@ def Model():
 
     cv_split = cross_validation_split_2()
 
+    # col_names, diff_model_comparision, predict_on_train_with_fold, predict_on_test
     MLA_columns, MLA_compare, MLA_predict, MLA_predict_on_data_val = multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv_split)
-    '''
-    del MLA_predict_on_data_val['Survived']
-    MLA_predict_on_data_val['predict'] = round(MLA_predict_on_data_val.mean(axis=1)).astype(int)
+    del MLA_predict_on_data_val['Survived'] # remove the useless col that was initially created for num of rows
+    MLA_predict_on_data_val['predict'] = round(MLA_predict_on_data_val.mean(axis=1)).astype(int) # let final prediction be avg among all models' prediction
 
     # submission(data_val['PassengerId'], MLA_predict_on_data_val['predict'], './output/achieve_99_models.csv') # 0.77511
     # classifier_accuracy_compare(MLA_compare)
@@ -550,8 +553,8 @@ def Model():
 
     # support is the number of samples of the true response that lie in that class.
     # macro average (averaging the unweighted mean per label)
+    print('kenny')
     print(metrics.classification_report(data1['Survived'], Tree_Predict)) # Build a text report showing the main classification metrics
-
     # hyper-param tuning
     dtree, base_results = decisionTree_no_hyperparam_tune(data1, data1_x_bin, Target, cv_split)
     y_pred_dtree = dtree.predict(data_val[data1_x_bin]).astype(int)
@@ -574,7 +577,6 @@ def Model():
 
     y_pred_vote_soft = vote_soft.predict(data_val[data1_x_bin]).astype(int)
     submission(data_val['PassengerId'], y_pred_vote_soft, './output/achieve_99_vote_soft.csv')
-        '''
 
 if __name__== "__main__":
     Model()
