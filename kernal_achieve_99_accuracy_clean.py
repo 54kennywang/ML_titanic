@@ -60,10 +60,11 @@ sns.set_style('white')
 pylab.rcParams['figure.figsize'] = 12,8
 
 # display missing-ness
-def display_missing(df):
-    for col in df.columns.tolist():
-        print( '{} column missing values: {}/{} = {}'.format(col, df[col].isnull().sum(), df.shape[0], df[col].isnull().sum()/df.shape[0]))
-    print('\n')
+def display_missing(dfs):
+    for df in dfs:
+        for col in df.columns.tolist():
+            print( '{} column missing values: {}/{} = {}'.format(col, df[col].isnull().sum(), df.shape[0], df[col].isnull().sum()/df.shape[0]))
+        print('-'*10)
 
 def correlation_heatmap(df):
     _, ax = plt.subplots(figsize=(14, 12))
@@ -142,10 +143,15 @@ def define_var(data1):
     print('Bin X Y: ', data1_xy_bin)
 
     # define x and y variables for dummy features original
+    print('kenny') # for testing one-hot effect, remember to comment out categorical_to_ordinal(data_cleaner) in Model()
+    print(data1[data1_x].head(1))
     data1_dummy = pd.get_dummies(data1[data1_x])  # having one-hot effect for categorical data, keep numeric unchanged
+    print(data1_dummy.head(1))
     data1_x_dummy = data1_dummy.columns.tolist()  # col names
     data1_xy_dummy = Target + data1_x_dummy
     print('Dummy X Y: ', data1_xy_dummy)
+
+    # only data1_dummy is df, all others are [col names]
     return Target, data1_x, data1_x_calc, data1_xy, data1_x_bin, data1_xy_bin, data1_dummy, data1_x_dummy, data1_xy_dummy
 
 def cross_validation_split_1(data1, data1_x_calc, Target, data1_x_bin, data1_dummy, data1_x_dummy):
@@ -202,7 +208,7 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
         # if this is a non-bias random sample, then +/-3 standard deviations (std) from the mean, should statistically capture 99.7% of the subsets
         MLA_compare.loc[row_index, 'MLA_Test_Accuracy_3*STD'] = cv_results['test_score'].std() * 3  # let's know the worst that can happen!
 
-        # save MLA predictions - see section 6 for usage
+        # maybe we can improve on feature selection
         alg.fit(data1[data1_x_bin], data1[Target])
         MLA_predict[MLA_name] = alg.predict(data1[data1_x_bin]) # record result of each classifier as a col for train_x
         MLA_predict_on_data_val[MLA_name] = alg.predict(data_val[data1_x_bin]) # record result of each classifier as a col for test_x
@@ -210,7 +216,7 @@ def multi_classifier_model_compare(data1, Target, data_val, MLA, data1_x_bin, cv
         row_index += 1
 
     # print and sort table: https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.sort_values.html
-    MLA_compare.sort_values(by=['MLA_Test_Accuracy_Mean'], ascending=False, inplace=True)
+    MLA_compare.sort_values(by=['MLA_Test_Accuracy_Mean'], ascending=False, inplace=True) # sort by MLA_Test_Accuracy_Mean in descending order
     print('======MLA_compare=====')
     print(MLA_compare)
     print('======MLA_predict=====')
@@ -263,15 +269,34 @@ def all_classifiers():
     ]
     return MLA
 
+# display unique values in a df with max ceiling in number, a helper function for categorical_to_ordinal
+def unique_values_in_column(dfs, ceiling):
+    for df in dfs:
+        for col in df.columns.tolist():
+            temp = df[col].unique()
+            if(len(temp) <= ceiling):
+                print( '*** {} column has {} values: {}'.format(col, len(temp), temp))
+            else:
+                print('{} has more than {} unique values'.format(col, ceiling) )
+        print('-'*10)
+
 def categorical_to_ordinal(data_cleaner):
     # code categorical data
     label = LabelEncoder()  # generate number values for categorical data
     for dataset in data_cleaner:
+        # create a new col
         dataset['Sex_Code'] = label.fit_transform(dataset['Sex'])
         dataset['Embarked_Code'] = label.fit_transform(dataset['Embarked'])
         dataset['Title_Code'] = label.fit_transform(dataset['Title'])
         dataset['AgeBin_Code'] = label.fit_transform(dataset['AgeBin'])
         dataset['FareBin_Code'] = label.fit_transform(dataset['FareBin'])
+
+        # convert inplace
+        # dataset['Sex'] = label.fit_transform(dataset['Sex'])
+        # dataset['Embarked'] = label.fit_transform(dataset['Embarked'])
+        # dataset['Title'] = label.fit_transform(dataset['Title'])
+        # dataset['AgeBin'] = label.fit_transform(dataset['AgeBin'])
+        # dataset['FareBin'] = label.fit_transform(dataset['FareBin'])
     return data_cleaner
 
 def submission(PassengerId, Survived, out):
@@ -305,11 +330,11 @@ def flip_a_coin(data1):
     # the mean of the column will then equal the accuracy
     data1['Random_Score'] = 0  # assume prediction wrong
     data1.loc[(data1['Survived'] == data1['Random_Predict']), 'Random_Score'] = 1  # set to 1 for correct prediction
-    print('Coin Flip Model Accuracy: {:.2f}%'.format(data1['Random_Score'].mean() * 100))
+    print('Coin Flip Model Accuracy on train: {:.2f}%'.format(data1['Random_Score'].mean() * 100))
 
     # we can also use scikit's accuracy_score function to save us a few lines of code
     # http://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score
-    print('Coin Flip Model Accuracy w/SciKit: {:.2f}%'.format(
+    print('Coin Flip Model Accuracy w/SciKit on train: {:.2f}%'.format(
         metrics.accuracy_score(data1['Survived'], data1['Random_Predict']) * 100))
     print()
 
@@ -344,6 +369,8 @@ def mytree(df):
                 (df.loc[index, 'Title'] in male_title)
         ):
             myModel.loc[index, 'Predict'] = 1
+    print('===mytree result===')
+    print(myModel)
     return myModel
 
 
@@ -354,6 +381,7 @@ def decisionTree_no_hyperparam_tune(data1, data1_x_bin, Target, cv_split):
     base_results = model_selection.cross_validate(dtree, data1[data1_x_bin], data1[Target], cv=cv_split, return_train_score=True)
     dtree.fit(data1[data1_x_bin], data1[Target])
 
+    print('decisionTree_no_hyperparam_tune')
     print('BEFORE DT Parameters: ', dtree.get_params())
     print("BEFORE DT Training w/bin score mean: {:.2f}".format(base_results['train_score'].mean() * 100))
     print("BEFORE DT Test w/bin score mean: {:.2f}".format(base_results['test_score'].mean() * 100))
@@ -383,6 +411,7 @@ def decisionTree_with_hyperparam_tune(data1, data1_x_bin, Target, cv_split):
     tune_model = model_selection.GridSearchCV(tree.DecisionTreeClassifier(), param_grid=param_grid, scoring='roc_auc', cv=cv_split, return_train_score=True)
     tune_model.fit(data1[data1_x_bin], data1[Target])
 
+    print('decisionTree_with_hyperparam_tune')
     # print(tune_model.cv_results_.keys())
     # print(tune_model.cv_results_['params'])
     print('AFTER DT Parameters: ', tune_model.best_params_)
@@ -397,6 +426,7 @@ def decisionTree_with_hyperparam_tune(data1, data1_x_bin, Target, cv_split):
 def feature_select(data1, data1_x_bin, dtree, base_results, cv_split, Target):
     # Feature Selection
     # more predictor variables do not make a better model, but the right predictors do.
+    print('feature_select')
     print('BEFORE DT RFE Training Shape Old: ', data1[data1_x_bin].shape)
     print('BEFORE DT RFE Training Columns Old: ', data1[data1_x_bin].columns.values.tolist())
 
@@ -485,6 +515,9 @@ def draw_tree(my_tree, feature_names, out='output/dtree_render'):
     graph.format = 'png'
     graph.render(out, view=True)
 
+def save_df_to_csv(df, outFileName):
+    df.to_csv(outFileName, sep='\t')
+
 def Model():
     data_raw = pd.read_csv('./input/train.csv')
 
@@ -500,18 +533,18 @@ def Model():
     # however passing by reference is convenient, because we can clean both datasets at once
     data_cleaner = [data1, data_val] # [train_copy, test]
 
-    display_missing(data1) # age/carbin/embark
-    display_missing(data_val) # age/carbin/fare/embark
+    display_missing(data_cleaner) # train_copy: age/carbin/embark, test: age/carbin/fare/embark
+
+    unique_values_in_column(data_cleaner, 5)
 
     data_cleaner = fill_in_missingness(data_cleaner) # age/fare/embark
-    # display_missing(data1) # cabin
-    # display_missing(data_val) # cabin
+    # display_missing(data_cleaner) # train_copy: carbin, test: carbin
 
     # delete the cabin feature/column and others previously stated to exclude in train dataset
     # drop_column = ['PassengerId', 'Cabin', 'Ticket']
     # data1.drop(drop_column, axis=1, inplace=True)
 
-    data_cleaner = feature_engineering(data_cleaner) # create FamilySize/IsAlone/Title/FareBin/AgeBin
+    feature_engineering(data_cleaner) # create FamilySize/IsAlone/Title/FareBin/AgeBin
 
     data1 = name_cleanUp(data1) # create Title
 
@@ -521,7 +554,7 @@ def Model():
     # print('kenny') # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
     # print(data_cleaner[0].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
     # print(data_cleaner[1].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
-    data_cleaner = categorical_to_ordinal(data_cleaner)
+    categorical_to_ordinal(data_cleaner)
     # print(data_cleaner[0].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
     # print(data_cleaner[1].head(1)) # this code is for data_cleaner = categorical_to_ordinal(data_cleaner)
     # print('kenny')
@@ -529,8 +562,9 @@ def Model():
     # only data1_dummy is df, all others are [col names]
     Target, data1_x, data1_x_calc, data1_xy, data1_x_bin, data1_xy_bin, data1_dummy, data1_x_dummy, data1_xy_dummy = define_var(data1)
 
-    # do not understand why we split data here
-    train1_x, test1_x, train1_y, test1_y, train1_x_bin, test1_x_bin, train1_y_bin, test1_y_bin, train1_x_dummy, test1_x_dummy, train1_y_dummy, test1_y_dummy = cross_validation_split_1(data1, data1_x_calc, Target, data1_x_bin, data1_dummy, data1_x_dummy)
+    # since we use cross_validation_split_2(), so the next line is not used
+    # train1_x, test1_x, train1_y, test1_y, train1_x_bin, test1_x_bin, train1_y_bin, test1_y_bin, train1_x_dummy, test1_x_dummy, train1_y_dummy, test1_y_dummy = cross_validation_split_1(data1, data1_x_calc, Target, data1_x_bin, data1_dummy, data1_x_dummy)
+
     MLA = all_classifiers()
 
     cv_split = cross_validation_split_2()
@@ -542,41 +576,41 @@ def Model():
 
     # submission(data_val['PassengerId'], MLA_predict_on_data_val['predict'], './output/achieve_99_models.csv') # 0.77511
     # classifier_accuracy_compare(MLA_compare)
-
+    print()
     flip_a_coin(data1)
 
     # model data
     Tree_Predict = mytree(data1)
-    print('Decision Tree Model Accuracy/Precision Score: {:.2f}%\n'.format(metrics.accuracy_score(data1['Survived'], Tree_Predict) * 100)) # Accuracy classification score
+    print('My Tree Model Accuracy/Precision Score on train: {:.2f}%\n'.format(metrics.accuracy_score(data1['Survived'], Tree_Predict) * 100)) # Accuracy classification score
     Tree_Predict_submit = mytree(data_val).astype(int)
     # submission(data_val['PassengerId'], Tree_Predict_submit['Predict'], './output/achieve_99_mytree.csv') # 0.77990
 
     # support is the number of samples of the true response that lie in that class.
     # macro average (averaging the unweighted mean per label)
-    print('kenny')
+    print('f1-score on myTree')
     print(metrics.classification_report(data1['Survived'], Tree_Predict)) # Build a text report showing the main classification metrics
     # hyper-param tuning
     dtree, base_results = decisionTree_no_hyperparam_tune(data1, data1_x_bin, Target, cv_split)
     y_pred_dtree = dtree.predict(data_val[data1_x_bin]).astype(int)
-    # submission(data_val['PassengerId'], y_pred_dtree, './output/achieve_99_dtree.csv') # 0.76555
+    # submission(data_val['PassengerId'], y_pred_dtree, './output/achieve_99_dtree_no_tuning.csv') # 0.76555
 
     tune_model, param_grid = decisionTree_with_hyperparam_tune(data1, data1_x_bin, Target, cv_split)
     y_pred_tune_model = tune_model.predict(data_val[data1_x_bin]).astype(int)
-    submission(data_val['PassengerId'], y_pred_tune_model, './output/achieve_99_tune_model.csv')
+    # submission(data_val['PassengerId'], y_pred_tune_model, './output/achieve_99_dtree_with_tuning.csv')
 
     # feature selection
     dtree_rfe, X_rfe, rfe_results = feature_select(data1, data1_x_bin, dtree, base_results, cv_split, Target)
     y_pred_dtree_rfe = dtree_rfe.predict(data_val[data1_x_bin]).astype(int)
-    submission(data_val['PassengerId'], y_pred_dtree_rfe, './output/achieve_99_dtree_rfe.csv')
+    # submission(data_val['PassengerId'], y_pred_dtree_rfe, './output/achieve_99_feature_selection.csv')
 
     # draw_tree(dtree, data1_x_bin, out='output/dtree')
 
     vote_hard, vote_soft = multi_classifier_voting_predication(data1, data1_x_bin, cv_split, Target)
     y_pred_vote_hard = vote_hard.predict(data_val[data1_x_bin]).astype(int)
-    submission(data_val['PassengerId'], y_pred_vote_hard, './output/achieve_99_vote_hard.csv')
+    # submission(data_val['PassengerId'], y_pred_vote_hard, './output/achieve_99_vote_hard.csv')
 
     y_pred_vote_soft = vote_soft.predict(data_val[data1_x_bin]).astype(int)
-    submission(data_val['PassengerId'], y_pred_vote_soft, './output/achieve_99_vote_soft.csv')
+    # submission(data_val['PassengerId'], y_pred_vote_soft, './output/achieve_99_vote_soft.csv')
 
 if __name__== "__main__":
     Model()

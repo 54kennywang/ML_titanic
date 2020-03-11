@@ -380,10 +380,9 @@ def create_second_layer_model_2(x_train_2, x_test_2):
     dt = DecisionTreeClassifier().fit(x_train_2, x_test_2)
     return dt
 
-def submission(PassengerId, predictions):
+def submission(PassengerId, predictions, out):
     StackingSubmission = pd.DataFrame({'PassengerId': PassengerId,
                                        'Survived': predictions})
-    out = './output/advanced_feature_with_stacking_5_fold.csv'
     # out = './output/StackingSubmission.csv'
     outFile = os.path.join(dirname, out)
     print('===output pred to '+out+'===')
@@ -417,7 +416,7 @@ def feature_importance(x_train, y_train, models, tr):
     df.loc['mean'] = df.mean()
     df.to_csv('feature_importance.csv')
 
-def Model(train, test):
+def Model_1(train, test):
     '''
     1. feature engineering to manipulate data => (x_train, y_train, x_test)
     2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
@@ -455,11 +454,11 @@ def Model(train, test):
 
     acc_gbm = round(gbm.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_gbm)
-    submission(PassengerId, predictions)
+    submission(PassengerId, predictions, './output/stacking_model_1.csv')
 
 def Model_2(train, test):
     # feature engineer the first stack
-    x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
     # x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
@@ -487,10 +486,11 @@ def Model_2(train, test):
     predictions = dt.predict(x_test_2).astype(int)
     acc_dt = round(dt.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_dt)
-    submission(PassengerId, predictions)
+    submission(PassengerId, predictions, './output/stacking_model_2.csv')
+
 
 if __name__== "__main__":
-    # Model(train, test)
+    Model_1(train, test)
     """
     rf 86.31
     et 87.32
@@ -500,7 +500,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    Model_2(train, test)
+    # Model_2(train, test)
     """
     rf 86.53
     et 87.32
