@@ -1,18 +1,24 @@
 # https://www.kaggle.com/arthurtok/introduction-to-ensembling-stacking-in-python/notebook
 
 """
-stacking: we have x_train -> y_train, we want to predict x_test -> ?
-normally, we train a stack m1 by (x_train, y_train), then we use m1 to do x_test -> y_test, y_test is our final predication --- (1)
-here, in (1), when m1 is being trained, we use oof to get y_train_oof on x_train, and ofc we still get y_test
-in second stack m2, we train m2 by (y_train_oof, y_train), then we use m2 to do y_test -> final_predication on x_test
+stacking: we have (x_train, y_train), we want to predict (x_test, ?)
+normally, we train a stack m1 by (x_train, y_train), then we use m1 to do x_test -> ? --- (1)
+here, in (1), when m1 is being trained, we use oof (see below) to get y_train_oof predicting on x_train, and y_test predicting on x_test
+in second stack m2, we train m2 by (y_train_oof, y_train), then we use m2 to do y_test -> ?
 
 oof: when train a model m by (x, y), instead of using all x at once to get loss by y, we divide x to (x1, x2, x3) (assume 3 fold)
-     x1, x2, x3 are disjoint and x1 + x2 + x3 = x
-     1) we train m by ((x1, x2), (y1, y2)) and we predict y3_oof on x3 and y_test_1 on y
-     2) we train m by ((x2, x3), (y2, y3)) and we predict y1_oof on x1 and y_test_2 on y
-     3) we train m by ((x1, x3), (y1, y3)) and we predict y2_oof on x2 and y_test_3 on y
-     finally, y1_oof + y2_oof + y3_oof = y_train_oof, average (y_test_1, y_test_2, y_test_3) to be y_test
-     so now, for layer 2, we have (y_train_oof, y) to train m2, then use m2 to predict (y_test, final_predication)
+     x1, x2, x3 are disjoint and x1 + x2 + x3 = x (correspondingly y = y1 + y2 + y3)
+     we want to predict on (p, ?)
+     1) we train m11 by (x1+x2, y1+y2), then use m11 to get y3_oof predicting on x3 and get y_test_1 predicting on p using m11
+     2) we train m12 by (x2+x3, y2+y3), then use m12 to get y1_oof predicting on x1 and get y_test_2 predicting on p using m12
+     3) we train m13 by (x1+x3, y1+y3), then use m13 to get y2_oof predicting on x2 and get y_test_3 predicting on p using m13
+     y1_oof + y2_oof + y3_oof = y_train_oof (m1 prediction on x), average (y_test_1, y_test_2, y_test_3) to be y_test (m1 prediction on p)
+     so now, for layer 2, we train m2 on (y_train_oof, y), then use m2 to predict (y_test, ?)
+
+model:
+    1. feature engineering to manipulate data => (x_train, y_train, x_test)
+    2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
+    3. second stack: make final predication with a model by passing in concatenated (oof_train, oof_test) => predictions
 """
 
 # Load in our libraries
@@ -35,8 +41,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Going to use these 5 base models for the stacking
-from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier,
-                              GradientBoostingClassifier, ExtraTreesClassifier)
+from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier)
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
@@ -119,49 +124,53 @@ def get_title(name):
 def fist_layer_feature_engineering(train, test):
     # Store our passenger ID for easy access
     PassengerId = test['PassengerId']
-    full_data = [train, test]
+    combine = [train, test]
 
     # Gives the length of the name
     train['Name_length'] = train['Name'].apply(len)
     test['Name_length'] = test['Name'].apply(len)
 
     # Feature that tells whether a passenger had a cabin on the Titanic
+    # empty is float so 0 means no cabin; 1 means have cabin
     train['Has_Cabin'] = train["Cabin"].apply(lambda x: 0 if type(x) == float else 1)
     test['Has_Cabin'] = test["Cabin"].apply(lambda x: 0 if type(x) == float else 1)
 
     # Create new feature FamilySize as a combination of SibSp and Parch
-    for dataset in full_data:
+    for dataset in combine:
         dataset['FamilySize'] = dataset['SibSp'] + dataset['Parch'] + 1
 
     # Create new feature IsAlone from FamilySize
-    for dataset in full_data:
+    for dataset in combine:
         dataset['IsAlone'] = 0
         dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
 
-    # Remove all NULLS in the Embarked column
-    for dataset in full_data:
+    # Fill all NULLS in the Embarked column
+    for dataset in combine:
         dataset['Embarked'] = dataset['Embarked'].fillna('S')
 
-    # Remove all NULLS in the Fare column and create a new feature CategoricalFare
-    for dataset in full_data:
+    # Fill all NULLS in the Fare column
+    for dataset in combine:
         dataset['Fare'] = dataset['Fare'].fillna(train['Fare'].median())
     train['CategoricalFare'] = pd.qcut(train['Fare'], 4)
 
-    # Create a New feature CategoricalAge
-    for dataset in full_data:
+    # Fill all NULLS in the Age column
+    for dataset in combine:
         age_avg = dataset['Age'].mean()
         age_std = dataset['Age'].std()
         age_null_count = dataset['Age'].isnull().sum()
         age_null_random_list = np.random.randint(age_avg - age_std, age_avg + age_std, size=age_null_count)
         dataset['Age'][np.isnan(dataset['Age'])] = age_null_random_list
         dataset['Age'] = dataset['Age'].astype(int)
+
+    # Create a New feature CategoricalAge
     train['CategoricalAge'] = pd.cut(train['Age'], 5)
 
     # Create a new feature Title, containing the titles of passenger names
-    for dataset in full_data:
+    for dataset in combine:
         dataset['Title'] = dataset['Name'].apply(get_title)
+
     # Group all non-common titles into one single grouping "Rare"
-    for dataset in full_data:
+    for dataset in combine:
         dataset['Title'] = dataset['Title'].replace(
             ['Lady', 'Countess', 'Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona'], 'Rare')
 
@@ -169,7 +178,8 @@ def fist_layer_feature_engineering(train, test):
         dataset['Title'] = dataset['Title'].replace('Ms', 'Miss')
         dataset['Title'] = dataset['Title'].replace('Mme', 'Mrs')
 
-    for dataset in full_data:
+    # categorical to ordinal conversion
+    for dataset in combine:
         # Mapping Sex
         dataset['Sex'] = dataset['Sex'].map({'female': 0, 'male': 1}).astype(int)
 
@@ -232,14 +242,15 @@ class SklearnHelper(object):
         return self.clf.score(x, y)
 
 # Out-of-Fold Predictions
-# one cannot simply train the base models on the full training data, generate predictions on the full test set and then output these for the second-level training. This runs the risk of your base model predictions already having "seen" the test set and therefore overfitting when feeding these predictions.
+# one cannot simply train the base models on the full training data, generate predictions on the full test set and then output these for the second-level training.
+# This runs the risk of your base model predictions already having "seen" the test set and therefore overfitting when feeding these predictions.
 # clf is the model
 # x_train, y_train, x_test are the outputs from fist_layer_feature_engineering
 # return prediction on x_train, average predication on x_test
 def get_oof(clf, x_train, y_train, x_test):
     oof_train = np.zeros((ntrain,)) # prediction on x_train
     oof_test = np.zeros((ntest,)) # average of 5 times of predication on x_test
-    oof_test_skf = np.empty((NFOLDS, ntest)) # each row is the predication for x_test
+    oof_test_skf = np.empty((NFOLDS, ntest)) # each row is a predication for x_test, in the end we average out 5 rows
 
     for i, (train_index, test_index) in enumerate(kf.split(x_train)): # i is the time of looping 0-4
         x_tr = x_train[train_index] # train subset
@@ -247,9 +258,9 @@ def get_oof(clf, x_train, y_train, x_test):
         x_te = x_train[test_index] # remaining train subset as test
 
         clf.train(x_tr, y_tr) # train on k-1 folds of train
-        oof_train[test_index] = clf.predict(x_te) # predict on last fold of train
+        oof_train[test_index] = clf.predict(x_te) # predict on last fold of train, each iteration fills 1/5 of the array
 
-        oof_test_skf[i, :] = clf.predict(x_test) # single time prediction on test
+        oof_test_skf[i, :] = clf.predict(x_test) # single time prediction on test, each iteration fills a row
 
     oof_test[:] = oof_test_skf.mean(axis=0) # average of 5 times of predication
 
@@ -264,50 +275,6 @@ def create_first_layer_models():
     gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
     svc = SklearnHelper(clf=SVC, seed=SEED, params=svc_params)
     return [rf, et, ada, gb, svc]
-
-# borrow best models from feature_engineering.py: DecisionTreeClassifier
-def create_first_layer_models_2():
-    rf = SklearnHelper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
-    et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
-    ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
-    gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
-    lg = SklearnHelper(clf=LogisticRegression, seed=SEED, params=dt_params)
-    return [rf, et, ada, gb, lg]
-# train first layer model with feature-engineered data
-# return oof_train: the tuple of train predictions for all models using oof
-# return oof_test: the tuple of test predictions for all models using oof
-def fist_layer_training_2(models, x_train, y_train, x_test):
-    rf, et, ada, gb, lg = models
-    et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
-    rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
-    ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
-    gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
-    lg_oof_train, lg_oof_test = get_oof(lg, x_train, y_train, x_test)  # Support Vector Classifier
-    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, lg_oof_train)
-    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, lg_oof_test)
-
-    rf.fit(x_train, y_train)
-    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
-    print("rf", acc_rf)
-
-    et.fit(x_train, y_train)
-    acc_et = round(et.score(x_train, y_train) * 100, 2)
-    print("et", acc_et)
-
-    ada.fit(x_train, y_train)
-    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
-    print("ada", acc_ada)
-
-    gb.fit(x_train, y_train)
-    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
-    print("gb", acc_gb)
-
-    lg.fit(x_train, y_train)
-    acc_lg = round(lg.score(x_train, y_train) * 100, 2)
-    print("lg", acc_lg)
-
-    return oof_train, oof_test
-
 
 # train first layer model with feature-engineered data
 # return oof_train: the tuple of train predictions for all models using oof
@@ -344,6 +311,50 @@ def fist_layer_training(models, x_train, y_train, x_test):
 
     return oof_train, oof_test
 
+# borrow best models from feature_engineering.py: DecisionTreeClassifier
+def create_first_layer_models_2():
+    rf = SklearnHelper(clf=RandomForestClassifier, seed=SEED, params=rf_params)
+    et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
+    ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
+    gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
+    lg = SklearnHelper(clf=LogisticRegression, seed=SEED, params=dt_params)
+    return [rf, et, ada, gb, lg]
+
+# train first layer model with feature-engineered data
+# return oof_train: the tuple of train predictions for all models using oof
+# return oof_test: the tuple of test predictions for all models using oof
+def fist_layer_training_2(models, x_train, y_train, x_test):
+    rf, et, ada, gb, lg = models
+    et_oof_train, et_oof_test = get_oof(et, x_train, y_train, x_test)  # Extra Trees
+    rf_oof_train, rf_oof_test = get_oof(rf, x_train, y_train, x_test)  # Random Forest
+    ada_oof_train, ada_oof_test = get_oof(ada, x_train, y_train, x_test)  # AdaBoost
+    gb_oof_train, gb_oof_test = get_oof(gb, x_train, y_train, x_test)  # Gradient Boost
+    lg_oof_train, lg_oof_test = get_oof(lg, x_train, y_train, x_test)  # Support Vector Classifier
+    oof_train = (et_oof_train, rf_oof_train, ada_oof_train, gb_oof_train, lg_oof_train)
+    oof_test = (et_oof_test, rf_oof_test, ada_oof_test, gb_oof_test, lg_oof_test)
+
+    rf.fit(x_train, y_train)
+    acc_rf = round(rf.score(x_train, y_train) * 100, 2)
+    print("rf", acc_rf)
+
+    et.fit(x_train, y_train)
+    acc_et = round(et.score(x_train, y_train) * 100, 2)
+    print("et", acc_et)
+
+    ada.fit(x_train, y_train)
+    acc_ada = round(ada.score(x_train, y_train) * 100, 2)
+    print("ada", acc_ada)
+
+    gb.fit(x_train, y_train)
+    acc_gb = round(gb.score(x_train, y_train) * 100, 2)
+    print("gb", acc_gb)
+
+    lg.fit(x_train, y_train)
+    acc_lg = round(lg.score(x_train, y_train) * 100, 2)
+    print("lg", acc_lg)
+
+    return oof_train, oof_test
+
 # concatenated and joined both the first-level train and test predictions as x_train and x_test, we can now fit a second-level learning model.
 def produce_second_input_from_first_output(oof_train, oof_test):
     x_train_2 = np.concatenate(oof_train, axis=1)
@@ -369,10 +380,9 @@ def create_second_layer_model_2(x_train_2, x_test_2):
     dt = DecisionTreeClassifier().fit(x_train_2, x_test_2)
     return dt
 
-def submission(PassengerId, predictions):
+def submission(PassengerId, predictions, out):
     StackingSubmission = pd.DataFrame({'PassengerId': PassengerId,
                                        'Survived': predictions})
-    out = './output/advanced_feature_with_stacking_5_fold.csv'
     # out = './output/StackingSubmission.csv'
     outFile = os.path.join(dirname, out)
     print('===output pred to '+out+'===')
@@ -406,7 +416,13 @@ def feature_importance(x_train, y_train, models, tr):
     df.loc['mean'] = df.mean()
     df.to_csv('feature_importance.csv')
 
-def Model(train, test):
+def Model_1(train, test):
+    '''
+    1. feature engineering to manipulate data => (x_train, y_train, x_test)
+    2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
+    3. second stack: make final predication with a model by passing in concatenated (oof_train, oof_test) => predictions
+    '''
+
     # feature engineer the first stack
     # x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
     x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
@@ -438,11 +454,11 @@ def Model(train, test):
 
     acc_gbm = round(gbm.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_gbm)
-    submission(PassengerId, predictions)
+    submission(PassengerId, predictions, './output/stacking_model_1.csv')
 
 def Model_2(train, test):
     # feature engineer the first stack
-    x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
     # x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
@@ -470,10 +486,11 @@ def Model_2(train, test):
     predictions = dt.predict(x_test_2).astype(int)
     acc_dt = round(dt.score(x_train_2, y_train) * 100, 2)
     print('Train accuracy:', acc_dt)
-    submission(PassengerId, predictions)
+    submission(PassengerId, predictions, './output/stacking_model_2.csv')
+
 
 if __name__== "__main__":
-    # Model(train, test)
+    Model_1(train, test)
     """
     rf 86.31
     et 87.32
@@ -483,7 +500,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    Model_2(train, test)
+    # Model_2(train, test)
     """
     rf 86.53
     et 87.32

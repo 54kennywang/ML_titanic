@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 import random as rnd
@@ -57,9 +56,11 @@ def view_data_info(df):
     df.info()
 
 # null percentage of cols in a df
-def get_null_percentage(df):
+def get_null_percentage(combine):
     print('=== Null percentage ===')
-    print(df.isna().sum() / df.shape[0])
+    for dataset in combine:
+        print(dataset.isna().sum() / dataset.shape[0])
+        print('-------------------')
 
 # basic df col stats
 def get_col_stats(df):
@@ -111,7 +112,7 @@ def add_name_length(combine):
     return combine
 
 # categorize title to Miss/Mrs/Rare/Master/Mr
-def caregorize_title(combine):
+def categorize_title(combine):
     for dataset in combine:
         dataset['Title'] = dataset['Title'].replace(['Col', 'Lady', 'Countess','Capt', 'Col' 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona', 'Don'], 'Rare')
         dataset['Title'] = dataset['Title'].replace('Mlle', 'Miss')
@@ -170,12 +171,13 @@ def fill_missing_age2(combine):
     return combine
 
 
-def group_age_into_bins(df):
+def group_age_into_bins(combine):
     # print(train_df.describe()) shows 0.0 <= Age <= 80.0
     print('=== Group age into bins ===')
+    for dataset in combine:
+        dataset['AgeBand'] = pd.cut(dataset['Age'], 5)
     # Use cut when you need to segment and sort data values into bins, here to put age into 5 bins
-    df['AgeBand'] = pd.cut(df['Age'], 5)
-    return df
+    return combine
 
 def convert_age_to_ordinal_based_on_age_bins(combine):
     print('=== convert age to ordinal value based on age bins ===')
@@ -187,17 +189,18 @@ def convert_age_to_ordinal_based_on_age_bins(combine):
         dataset.loc[ dataset['Age'] > 64, 'Age'] = 4
     return combine
 
-def fill_missing_fare(df):
+def fill_missing_fare(combine):
     print('=== Fill in missing fare in test ===')
-    df['Fare'].fillna(df['Fare'].dropna().median(), inplace=True)
-    return df
+    combine[1]['Fare'].fillna(combine[1]['Fare'].dropna().median(), inplace=True)
+    return combine
 
-def group_fare_into_bins(df):
+def group_fare_into_bins(combine):
     print('=== Group fare into bins ===')
+    for dataset in combine:
+        dataset['FareBand'] = pd.cut(dataset['Fare'], 4)
     # print(train_df.describe()) shows 0.0 <= Fare <= 512.329200
     # Use cut when you need to segment and sort data values into bins, here to put fare into 4 bins
-    df['FareBand'] = pd.cut(df['Fare'], 4)
-    return df
+    return combine
 
 def convert_fare_to_ordinal_based_on_fare_bins(combine):
     print('=== convert fare to ordinal value based on fare bins ===')
@@ -209,10 +212,10 @@ def convert_fare_to_ordinal_based_on_fare_bins(combine):
         dataset['Fare'] = dataset['Fare'].astype(int)
     return combine
 
-def fill_missing_embarked(df, combine):
+def fill_missing_embarked(combine):
     print('=== Fill in missing embarked in train ===')
     # only 2 missing Embarked in train_df, simply replace them with the most frequent one
-    freq_port = df.Embarked.dropna().mode()[0]
+    freq_port = combine[0].Embarked.dropna().mode()[0]
     for dataset in combine:
         dataset['Embarked'] = dataset['Embarked'].fillna(freq_port)
     return combine
@@ -230,11 +233,6 @@ def create_IsAlone(combine):
         dataset.loc[dataset['FamilySize'] == 1, 'IsAlone'] = 1
     return combine
 
-def update_df(combine):
-    train_df = combine[0]
-    test_df = combine[1]
-    return train_df, test_df
-
 def Pearson_Correlation_of_Features(train_df):
     colormap = plt.cm.RdBu
     plt.figure(figsize=(14, 12))
@@ -242,45 +240,11 @@ def Pearson_Correlation_of_Features(train_df):
     sns.heatmap(train_df.astype(float).corr(), linewidths=0.1, vmax=1.0,
                 square=True, cmap=colormap, linecolor='white', annot=True)
     plt.show()
+
 def feature_importance(cls, X_train, Y_train):
     importance = (cls.fit(X_train, Y_train).feature_importances_).tolist()
     titles = X_train.columns.values.tolist()
     return titles, importance
-
-# Model
-"""
-print('=== Model ===')
-X_train = train_df.drop(["PassengerId", "Survived"], axis=1) # (891, 10)
-Y_train = train_df["Survived"] # (891,)
-X_test  = test_df.drop("PassengerId", axis=1).copy() # (418, 10)
-
-# i, c = np.where(X_train == 'Col')
-# print ((X_train.index[i][0], X_train.columns[c][0]))
-X_train = X_train.astype(int)
-Y_train = Y_train.astype(int)
-X_test = X_test.astype(int)
-
-
-logreg = LogisticRegression()
-logreg.fit(X_train, Y_train)
-Y_pred = logreg.predict(X_test)
-acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
-print("LogisticRegression:", acc_log)
-
-decision_tree = DecisionTreeClassifier()
-decision_tree.fit(X_train, Y_train)
-Y_pred = decision_tree.predict(X_test)
-acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
-print("DecisionTree", acc_decision_tree)
-
-random_forest = RandomForestClassifier(n_estimators=100)
-random_forest.fit(X_train, Y_train)
-Y_pred = random_forest.predict(X_test)
-random_forest.score(X_train, Y_train)
-acc_random_forest = round(random_forest.score(X_train, Y_train) * 100, 2)
-print("RandomForest", acc_random_forest)
-
-"""
 
 def submission(test_df, Y_pred):
     submission = pd.DataFrame({
@@ -299,23 +263,20 @@ def Model(train_input, test_input):
     # view_head_data(train_df, 3)
     # view_head_data(test_df, 3)
     #
-    # get_null_percentage(train_df)
-    # get_null_percentage(test_df)
+    # get_null_percentage(combine)
     #
-    # get_col_stats(train_df)
+    get_col_stats(train_df)
     # get_col_stats(test_df)
 
     # extract and add Title from Name
-    combine = add_title_col(combine)
+    add_title_col(combine)
 
     # convert Title to ordinal
-    combine = caregorize_title(combine)
-    combine = categorical_to_ordinal(combine, title_mapping, 'Title')
-    train_df, test_df = update_df(combine)
+    categorize_title(combine)
+    categorical_to_ordinal(combine, title_mapping, 'Title')
 
     # add nameLen col
-    combine = add_name_length(combine)
-    train_df, test_df = update_df(combine)
+    add_name_length(combine)
 
     # remove Name col
     train_df = drop_col(train_df, ['Name'])
@@ -323,50 +284,37 @@ def Model(train_input, test_input):
     combine = [train_df, test_df]
 
     # convert Sex to ordinal
-    combine = categorical_to_ordinal(combine, sex_mapping, 'Sex')
-    train_df, test_df = update_df(combine)
+    categorical_to_ordinal(combine, sex_mapping, 'Sex')
 
     # Fill in missing age
-    combine = fill_missing_age2(combine)
-    train_df, test_df = update_df(combine)
+    fill_missing_age2(combine)
 
     # Group age into bins
-    train_df = group_age_into_bins(train_df)
-    test_df = group_age_into_bins(test_df)
-    combine = [train_df, test_df]
+    group_age_into_bins(combine)
 
     # convert age to ordinal based on age bins
-    combine = convert_age_to_ordinal_based_on_age_bins(combine)
-    train_df, test_df = update_df(combine)
+    convert_age_to_ordinal_based_on_age_bins(combine)
 
     # Group fare into bins
-    train_df = group_fare_into_bins(train_df)
-    test_df = group_fare_into_bins(test_df)
-    combine = [train_df, test_df]
+    group_fare_into_bins(combine)
 
     # Fill in missing fare
-    test_df = fill_missing_fare(test_df)
-    combine = [train_df, test_df]
+    fill_missing_fare(combine)
 
     # convert fare to ordinal based on fare bins
-    combine = convert_fare_to_ordinal_based_on_fare_bins(combine)
-    train_df, test_df = update_df(combine)
+    convert_fare_to_ordinal_based_on_fare_bins(combine)
 
     # Fill in missing Embarked
-    combine = fill_missing_embarked(train_df, combine)
-    train_df, test_df = update_df(combine)
+    fill_missing_embarked(combine)
 
     # Convert Embarked to ordinal
-    combine = categorical_to_ordinal(combine, embarked_mapping, 'Embarked')
-    train_df, test_df = update_df(combine)
+    categorical_to_ordinal(combine, embarked_mapping, 'Embarked')
 
     # create FamilySize
-    combine = create_FamilySize(combine)
-    train_df, test_df = update_df(combine)
+    create_FamilySize(combine)
 
     # create IsAlone
-    combine = create_IsAlone(combine)
-    train_df, test_df = update_df(combine)
+    create_IsAlone(combine)
 
     # drop useless columns
     train_df = drop_col(train_df, ['Cabin', 'Ticket', 'AgeBand', 'FareBand'])
@@ -376,8 +324,7 @@ def Model(train_input, test_input):
     # view_head_data(train_df, 3)
     # view_head_data(test_df, 3)
     #
-    # get_null_percentage(train_df)
-    # get_null_percentage(test_df)
+    # get_null_percentage(combine)
     # Pearson_Correlation_of_Features(train_df)
 
     print('=== Model ===')
@@ -388,14 +335,6 @@ def Model(train_input, test_input):
     X_train = X_train.astype(int)
     Y_train = Y_train.astype(int)
     X_test = X_test.astype(int)
-    """
-
-    logreg = LogisticRegression() # 80.92
-    logreg.fit(X_train, Y_train)
-    Y_pred = logreg.predict(X_test)
-    acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
-    print("LogisticRegression:", acc_log)
-    """
 
     decision_tree = DecisionTreeClassifier()
     # feature importance
@@ -407,9 +346,14 @@ def Model(train_input, test_input):
     Y_pred = decision_tree.predict(X_test)
     acc_decision_tree = round(decision_tree.score(X_train, Y_train) * 100, 2)
     print("DecisionTree", acc_decision_tree)
-    submission(test_df, Y_pred)
+    # submission(test_df, Y_pred)
 
     """
+    logreg = LogisticRegression() # 80.92
+    logreg.fit(X_train, Y_train)
+    Y_pred = logreg.predict(X_test)
+    acc_log = round(logreg.score(X_train, Y_train) * 100, 2)
+    print("LogisticRegression:", acc_log)
 
     random_forest = RandomForestClassifier() # 95.4
     random_forest.fit(X_train, Y_train)
@@ -423,20 +367,17 @@ def Model(train_input, test_input):
     acc_KNeighbors = round(KNeighbors.score(X_train, Y_train) * 100, 2)
     print("KNeighbors", acc_KNeighbors)
 
-
     Gaussian = GaussianNB() # 80.25
     Gaussian.fit(X_train, Y_train)
     Y_pred = Gaussian.predict(X_test)
     acc_Gaussian = round(Gaussian.score(X_train, Y_train) * 100, 2)
     print("Gaussian", acc_Gaussian)
 
-
     # Percept = Perceptron()
     # Percept.fit(X_train, Y_train)
     # Y_pred = Percept.predict(X_test)
     # acc_rPercept = round(Percept.score(X_train, Y_train) * 100, 2)
     # print("Percept", Percept)
-
 
     SGD = SGDClassifier() # 74.19
     SGD.fit(X_train, Y_train)
