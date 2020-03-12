@@ -85,7 +85,7 @@ def fill_missing_age(dfs):
 def fill_missing_embarked(dfs):
     print('===fill missing embarked===')
     df_all = concat_df(dfs[0], dfs[1])
-    df_all['Embarked'] = df_all['Embarked'].fillna(embarked_mapping['S'])
+    df_all['Embarked'] = df_all['Embarked'].fillna('S')
     return divide_df(df_all)
 
 def fill_missing_fare(dfs):
@@ -164,7 +164,7 @@ def convert_fare_to_ordinal_based_on_bins(dfs):
         dataset.loc[(dataset['Fare'] > 75) & (dataset['Fare'] <= 120), 'Fare'] = 2
         dataset.loc[(dataset['Fare'] > 120) & (dataset['Fare'] <= 135), 'Fare'] = 3
         dataset.loc[ dataset['Fare'] > 135, 'Fare'] = 4
-        dataset['Fare'] = dataset['Fare'].astype(int)
+        # dataset['Fare'] = dataset['Fare'].astype(int)
     return dfs
 
 def add_name_length(dfs):
@@ -181,29 +181,34 @@ def deck_T_to_A(dfs):
     # print(df_all.loc[[339]])  # confirm this row is changed to Deck = 'A'
     return divide_df(df_all)
 
-def advanced_feature_engineer(df_train, df_test):
+def advanced_feature_engineer_pd(df_train, df_test, one_hot=False):
     dfs = [df_train, df_test]
     df_all = concat_df(df_train, df_test)
 
     display_missingness(dfs)
 
-    categorical_to_ordinal(dfs, sex_mapping, 'Sex')
-    categorical_to_ordinal(dfs, embarked_mapping, 'Embarked')
-    df_all = concat_df(df_train, df_test)
-    # print(df_train.shape)
-    # print(df_test.shape)
+    if not one_hot:
+        categorical_to_ordinal(dfs, sex_mapping, 'Sex')
+        df_all = concat_df(df_train, df_test)
+    # print(df_train.head(1))
+    # print(df_test.head(1))
     # print(df_all)
 
-    correlation(dfs, 'Age', True)  # => Median age of Pclass groups is the best choice because of its high correlation with Age
+    correlation(dfs, 'Age',
+                True)  # => Median age of Pclass groups is the best choice because of its high correlation with Age
     df_train, df_test = fill_missing_age(dfs)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Embarked null in df_train===")
     print(df_all[df_all['Embarked'].isnull()])
-    correlation(dfs, 'Embarked', True)  # => this does not give much info about which col is closely related to 'Embarked'
+    correlation(dfs, 'Embarked',
+                True)  # => this does not give much info about which col is closely related to 'Embarked'
     df_train, df_test = fill_missing_embarked(dfs)
     dfs = [df_train, df_test]
+    if not one_hot:
+        categorical_to_ordinal(dfs, embarked_mapping, 'Embarked')
+        dfs = [df_train, df_test]
     display_missingness(dfs)
 
     print("===Fare null in df_test===")
@@ -222,9 +227,10 @@ def advanced_feature_engineer(df_train, df_test):
     dfs = [df_train, df_test]
     # print(df_train.head(3))
 
-    categorical_to_ordinal(dfs, deck_mapping, 'Deck')
-    print(df_train.iloc[:1])
-    # print(df_train.head(3))
+    if not one_hot:
+        categorical_to_ordinal(dfs, deck_mapping, 'Deck')
+        print(df_train.iloc[:1])
+        # print(df_train.head(3))
 
     add_title_col(dfs)
     print(df_train.iloc[:1])
@@ -234,9 +240,22 @@ def advanced_feature_engineer(df_train, df_test):
     print(df_train.iloc[:1])
     # print(df_train.head(3))
 
-    categorical_to_ordinal(dfs, title_mapping, 'Title')
-    print(df_train.iloc[:1])
-    # print(df_train.head(3))
+    if not one_hot:
+        categorical_to_ordinal(dfs, title_mapping, 'Title')
+        print(df_train.iloc[:1])
+
+    if one_hot:
+        # one-hot col_names instead of categorical_to_ordinal
+        col_names = ['Deck', 'Embarked', 'Sex', 'Title']
+        df_train_oneHot = pd.get_dummies(df_train[col_names])
+        df_test_oneHot  = pd.get_dummies(df_test[col_names])
+        # drop cols that are already converted to one-hot
+        df_train = drop_col(df_train, col_names)
+        df_test = drop_col(df_test, col_names)
+        # put them together
+        df_train = pd.concat([df_train, df_train_oneHot], axis=1)
+        df_test = pd.concat([df_test, df_test_oneHot], axis=1)
+        dfs = [df_train, df_test]
 
     create_FamilySize(dfs)
     print(df_train.head(1))
@@ -264,7 +283,10 @@ def advanced_feature_engineer(df_train, df_test):
     print(df_test.head(1))
     display_missingness(dfs)
     print('=== no more missingness ==')
+    return df_train, df_test
 
+def advanced_feature_engineer(df_train, df_test, oneHot=False):
+    df_train, df_test = advanced_feature_engineer_pd(df_train, df_test, oneHot)
     # Create Numpy arrays of train, test and target ( Survived) dataframes to feed into our models
     y_train = df_train['Survived'].ravel()
     train = df_train.drop(['Survived', 'PassengerId'], axis=1)

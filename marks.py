@@ -18,14 +18,14 @@ def mark(pred):
     print(pred[:-4], '==', (df[(df['Sol'] == df['Pred'])]).shape[0] / num_row)
 
 if __name__== "__main__":
-    mark('stacking_model_1.csv')
-    mark('stacking_model_2.csv')
+    mark('stacking_model_1.csv') # 0.7751196172248804
+    mark('stacking_model_2.csv') # 0.7727272727272727
 
-    mark('achieve_99_models.csv')
-    mark('achieve_99_mytree.csv')
-    mark('achieve_99_dtree_no_tuning.csv')
-    mark('achieve_99_dtree_with_tuning.csv')
-    mark('achieve_99_feature_selection.csv')
-    mark('achieve_99_vote_hard.csv')
-    mark('achieve_99_vote_soft.csv')
+    mark('achieve_99_models.csv') # 0.7751196172248804
+    mark('achieve_99_mytree.csv') # 0.7631578947368421
+    mark('achieve_99_dtree_no_tuning.csv') # 0.7631578947368421
+    mark('achieve_99_dtree_with_tuning.csv') # 0.7751196172248804
+    mark('achieve_99_feature_selection.csv') # 0.7703349282296651
+    mark('achieve_99_vote_hard.csv') # 0.7631578947368421
+    mark('achieve_99_vote_soft.csv') # 0.7727272727272727
     # mark('GA.csv')
