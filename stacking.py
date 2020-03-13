@@ -416,7 +416,7 @@ def feature_importance(x_train, y_train, models, tr):
     df.loc['mean'] = df.mean()
     df.to_csv('feature_importance.csv')
 
-def Model_1(train, test):
+def Model_1(train, test, oneHot=False):
     '''
     1. feature engineering to manipulate data => (x_train, y_train, x_test)
     2. first stack: get oof (out of fold) by passing in (models, x_train, y_train, x_test) => (oof_train, oof_test)
@@ -425,7 +425,7 @@ def Model_1(train, test):
 
     # feature engineer the first stack
     # x_train, y_train, x_test, tr = fist_layer_feature_engineering(train, test)
-    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test, oneHot)
 
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
@@ -456,9 +456,9 @@ def Model_1(train, test):
     print('Train accuracy:', acc_gbm)
     submission(PassengerId, predictions, './output/stacking_model_1.csv')
 
-def Model_2(train, test):
+def Model_2(train, test, oneHot=False):
     # feature engineer the first stack
-    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test, oneHot)
     # x_train, y_train, x_test, tr = advanced_feature_engineer(train, test)
     # get Pearson_Correlation_of_Features
     # x_train_df = pd.DataFrame(data=x_train, columns=
@@ -490,7 +490,7 @@ def Model_2(train, test):
 
 
 if __name__== "__main__":
-    Model_1(train, test)
+    Model_1(train, test, True)
     """
     rf 86.31
     et 87.32
@@ -500,7 +500,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    # Model_2(train, test)
+    Model_2(train, test, True)
     """
     rf 86.53
     et 87.32
