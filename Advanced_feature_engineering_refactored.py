@@ -88,11 +88,14 @@ def fill_missing_embarked(dfs):
     df_all['Embarked'] = df_all['Embarked'].fillna('S')
     return divide_df(df_all)
 
-def fill_missing_fare(dfs):
+def fill_missing_fare(dfs, oneHot):
     print('===fill missing fare===')
     df_all = concat_df(dfs[0], dfs[1])
-    median_fare = df_all.loc[
-        (df_all['Pclass'] == 3) & (df_all['Parch'] == 0) & (df_all['Sex'] == 0) & (df_all['SibSp'] == 0)].Fare.median()
+    if oneHot is True:
+        value = 'male'
+    else:
+        value = 0
+    median_fare = df_all.loc[(df_all['Pclass'] == 3) & (df_all['Parch'] == 0) & (df_all['Sex'] == value) & (df_all['SibSp'] == 0)].Fare.median()
     df_all['Fare'] = df_all['Fare'].fillna(median_fare)
     return divide_df(df_all)
 
@@ -214,7 +217,7 @@ def advanced_feature_engineer_pd(df_train, df_test, one_hot=False):
     print("===Fare null in df_test===")
     print(df_all[df_all['Fare'].isnull()])
     correlation(dfs, 'Fare', True)  # => highly associated with 'Pclass', 'Parch', 'SibSp', 'Sex'
-    df_train, df_test = fill_missing_fare(dfs)
+    df_train, df_test = fill_missing_fare(dfs, one_hot)
     dfs = [df_train, df_test]
     display_missingness(dfs)
 
