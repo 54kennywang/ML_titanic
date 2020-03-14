@@ -72,10 +72,12 @@ rf_params = {
     'n_estimators': 500,
      'warm_start': True,
      #'max_features': 0.2,
-    'max_depth': 6,
-    'min_samples_leaf': 2,
+    # 'max_depth': 6,
+    'min_samples_leaf': 1,
     'max_features' : 'sqrt',
-    'verbose': 0
+    'verbose': 0,
+    'bootstrap': True,
+    'oob_score': True
 }
 
 # Extra Trees Parameters
@@ -91,7 +93,7 @@ et_params = {
 # AdaBoost parameters
 ada_params = {
     'n_estimators': 500,
-    'learning_rate' : 0.75
+    'learning_rate' : 1
 }
 
 # Gradient Boosting parameters
@@ -531,7 +533,7 @@ def stacking_three_layers(train, test, oneHot=False):
 
 
 if __name__== "__main__":
-    # Model_1(train, test, True) # 85.19
+    Model_1(train, test, True) # 85.19
     """
     rf 86.31
     et 87.32
@@ -541,7 +543,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    Model_2(train, test, True) # 85.3
+    # Model_2(train, test, True) # 85.3
     """
     rf 86.53
     et 87.32
