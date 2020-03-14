@@ -494,6 +494,7 @@ bg_params = {
      'max_features': 0.5,
 }
 
+# just try different classifier
 def create_first_layer_models_3_layers():
     rf = SklearnHelper(clf=BaggingClassifier, seed=SEED, params=bg_params)
     et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
