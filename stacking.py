@@ -41,7 +41,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Going to use these 5 base models for the stacking
-from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier)
+from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier, BaggingClassifier, VotingClassifier)
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
@@ -253,12 +253,11 @@ def get_oof(clf, x_train, y_train, x_test):
     oof_test_skf = np.empty((NFOLDS, ntest)) # each row is a predication for x_test, in the end we average out 5 rows
 
     for i, (train_index, test_index) in enumerate(kf.split(x_train)): # i is the time of looping 0-4
-        x_tr = x_train[train_index] # train subset
-        y_tr = y_train[train_index] # train label subset
-        x_te = x_train[test_index] # remaining train subset as test
-
-        clf.train(x_tr, y_tr) # train on k-1 folds of train
-        oof_train[test_index] = clf.predict(x_te) # predict on last fold of train, each iteration fills 1/5 of the array
+        x_train_fold = x_train[train_index] # train subset
+        y_fold = y_train[train_index] # train label subset
+        x_train_remaining = x_train[test_index] # remaining train subset as test
+        clf.train(x_train_fold, y_fold) # train on k-1 folds of train
+        oof_train[test_index] = clf.predict(x_train_remaining) # predict on last fold of train, each iteration fills 1/5 of the array
 
         oof_test_skf[i, :] = clf.predict(x_test) # single time prediction on test, each iteration fills a row
 
@@ -488,9 +487,50 @@ def Model_2(train, test, oneHot=False):
     print('Train accuracy:', acc_dt)
     submission(PassengerId, predictions, './output/stacking_model_2.csv')
 
+bg_params = {
+    'n_jobs': -1,
+    'n_estimators': 400,
+     'warm_start': True,
+     'max_features': 0.5,
+}
+
+def create_first_layer_models_3_layers():
+    rf = SklearnHelper(clf=BaggingClassifier, seed=SEED, params=bg_params)
+    et = SklearnHelper(clf=ExtraTreesClassifier, seed=SEED, params=et_params)
+    ada = SklearnHelper(clf=AdaBoostClassifier, seed=SEED, params=ada_params)
+    gb = SklearnHelper(clf=GradientBoostingClassifier, seed=SEED, params=gb_params)
+    svc = SklearnHelper(clf=SVC, seed=SEED, params=svc_params)
+    return [rf, et, ada, gb, svc]
+
+def stacking_three_layers(train, test, oneHot=False):
+    # first layer
+    print('===start 1st layer===')
+    x_train, y_train, x_test, tr = advanced_feature_engineer(train, test, oneHot)
+    models = create_first_layer_models()
+    oof_train, oof_test = fist_layer_training(models, x_train, y_train, x_test)
+    x_train_2, x_test_2 = produce_second_input_from_first_output(oof_train, oof_test)
+    print('===1st layer finished===')
+
+    print('===start 2nd layer===')
+    # second layer
+    models = create_first_layer_models_3_layers()
+    oof_train_2, oof_test_2 = fist_layer_training(models, x_train_2, y_train, x_test_2)
+    x_train_3, x_test_3 = produce_second_input_from_first_output(oof_train_2, oof_test_2)
+    print('===2nd layer finished===')
+
+    print('===start 3rd layer===')
+    # third layer
+    gbm = create_second_layer_model(x_train_3, y_train)
+    predictions = gbm.predict(x_test_3).astype(int)
+    print('===3nd layer finished===')
+
+    acc_gbm = round(gbm.score(x_train_2, y_train) * 100, 2)
+    print('Train accuracy:', acc_gbm)
+    # submission(PassengerId, predictions, './output/stacking_model_3_layers.csv')
+
 
 if __name__== "__main__":
-    Model_1(train, test, True)
+    # Model_1(train, test, True) # 85.19
     """
     rf 86.31
     et 87.32
@@ -500,7 +540,7 @@ if __name__== "__main__":
     Train accuracy: 86.87
     """
 
-    Model_2(train, test, True)
+    Model_2(train, test, True) # 85.3
     """
     rf 86.53
     et 87.32
@@ -509,3 +549,5 @@ if __name__== "__main__":
     dt 96.86
     Train accuracy: 86.53
     """
+
+    # stacking_three_layers(train, test, oneHot=False) # 81.26
