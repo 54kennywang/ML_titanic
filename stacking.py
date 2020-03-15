@@ -46,6 +46,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -102,15 +103,25 @@ gb_params = {
      #'max_features': 0.2,
     'max_depth': 5,
     'min_samples_leaf': 2,
-    'verbose': 0
+    'verbose': 0,
+    'learning_rate': 0.1,
+    # 'warm_start': True
 }
 
 # Support Vector Classifier parameters
 svc_params = {
-    'kernel' : 'linear',
-    'C' : 0.025
+    'kernel' : 'poly',
+    'C' : 0.025,
+    'degree': 4
     }
+
 dt_params = {}
+
+kn_params = {
+    'n_neighbors': 7,
+    # 'weights': 'uniform',
+    'weights': 'distance',
+}
 
 # Define function to extract titles from passenger names
 def get_title(name):
@@ -362,7 +373,7 @@ def produce_second_input_from_first_output(oof_train, oof_test):
     x_test_2 = np.concatenate(oof_test, axis=1)
     return x_train_2, x_test_2
 
-def create_second_layer_model(x_train_2, x_test_2):
+def create_second_layer_model(x_train_2, x_test_2): # try kn
     gbm = xgb.XGBClassifier(
         n_estimators=2000,
         max_depth=4,
@@ -539,7 +550,7 @@ if __name__== "__main__":
     et 87.32
     ada 84.4
     gb 96.52
-    svc 81.48
+    svc 89.23
     Train accuracy: 86.87
     """
 
