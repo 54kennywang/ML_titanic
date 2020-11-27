@@ -46,6 +46,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import KFold
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 
 # set dataFrame display properties
 pd.set_option('display.max_rows', 500)
@@ -72,10 +73,12 @@ rf_params = {
     'n_estimators': 500,
      'warm_start': True,
      #'max_features': 0.2,
-    'max_depth': 6,
-    'min_samples_leaf': 2,
+    # 'max_depth': 6,
+    'min_samples_leaf': 1,
     'max_features' : 'sqrt',
-    'verbose': 0
+    'verbose': 0,
+    'bootstrap': True,
+    'oob_score': True
 }
 
 # Extra Trees Parameters
@@ -91,7 +94,7 @@ et_params = {
 # AdaBoost parameters
 ada_params = {
     'n_estimators': 500,
-    'learning_rate' : 0.75
+    'learning_rate' : 1
 }
 
 # Gradient Boosting parameters
@@ -100,15 +103,25 @@ gb_params = {
      #'max_features': 0.2,
     'max_depth': 5,
     'min_samples_leaf': 2,
-    'verbose': 0
+    'verbose': 0,
+    'learning_rate': 0.1,
+    # 'warm_start': True
 }
 
 # Support Vector Classifier parameters
 svc_params = {
-    'kernel' : 'linear',
-    'C' : 0.025
+    'kernel' : 'poly',
+    'C' : 0.025,
+    'degree': 4
     }
+
 dt_params = {}
+
+kn_params = {
+    'n_neighbors': 7,
+    # 'weights': 'uniform',
+    'weights': 'distance',
+}
 
 # Define function to extract titles from passenger names
 def get_title(name):
@@ -360,7 +373,7 @@ def produce_second_input_from_first_output(oof_train, oof_test):
     x_test_2 = np.concatenate(oof_test, axis=1)
     return x_train_2, x_test_2
 
-def create_second_layer_model(x_train_2, x_test_2):
+def create_second_layer_model(x_train_2, x_test_2): # try kn
     gbm = xgb.XGBClassifier(
         n_estimators=2000,
         max_depth=4,
@@ -531,17 +544,17 @@ def stacking_three_layers(train, test, oneHot=False):
 
 
 if __name__== "__main__":
-    # Model_1(train, test, True) # 85.19
+    Model_1(train, test, True) # 85.19
     """
     rf 86.31
     et 87.32
     ada 84.4
     gb 96.52
-    svc 81.48
+    svc 89.23
     Train accuracy: 86.87
     """
 
-    Model_2(train, test, True) # 85.3
+    # Model_2(train, test, True) # 85.3
     """
     rf 86.53
     et 87.32
